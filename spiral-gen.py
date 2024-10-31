@@ -169,8 +169,8 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'    }}\n'
         src2 += f'    placed[p->piecenum] = 1;\n'
         src2 += f'    if ({ord1+1} > best) {{\n'
-        src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'      best = {ord1+1};\n'
+        src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'    }}\n'
 
         fp.write(src2)

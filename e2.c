@@ -1,13 +1,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include <time.h>
 #include "genheader.h"
 
 #define TRUE 1
 #define FALSE 0
 
-int height=WIDTH, width=HEIGHT, best=0;
+int height=WIDTH, width=HEIGHT, best=0, core=0;
 long long nodes=0;
 time_t start_time;
 
@@ -46,14 +51,42 @@ shuffle(int *array, size_t n) {
 
 void
 print_status() {
-  printf("status {'best': %d, 'nodes': %lld, 'time': %ld, 'rate': %lld}\n", best, nodes, time(NULL)-start_time, nodes/(time(NULL)-start_time));
+  char msg[1024];
+  char msg2[1024];
+  // sprintf(msg, "status {'best': %d, 'nodes': %lld, 'time': %lld, 'rate': %lld}\n", best, nodes, time(NULL)-start_time, nodes/(time(NULL)-start_time));
+  sprintf(msg, "best=%d nodes=%lld time=%lld rate=%lld", best, nodes, time(NULL)-start_time, nodes/(time(NULL)-start_time));
+#ifdef EMSCRIPTEN
   fflush(stdout);
+  sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
+  emscripten_run_script(msg2);
+#else
+  printf("%s", msg);
+#endif
 }
+
+#ifdef __EMSCRIPTEN__
+char best_buf[8192];
+#endif
 
 void
 print_puzz(int ord) {
   int pos1, ord1;
   piece_t *p;
+#ifdef __EMSCRIPTEN__
+  sprintf(best_buf, "postMessage({msgType:'best',data:[%d,[",ord);
+  for(pos1=0; pos1<width*height; pos1++) {
+    ord1 = pos2ord[pos1];
+    if (ord1 < ord) {
+      p = Q[ord1].pieces->piece;
+      sprintf(best_buf+strlen(best_buf), "[%d,%d],", p->piecenum, p->rot);
+      //printf("%s ", p->edgestr);
+    } else {
+      sprintf(best_buf+strlen(best_buf), "[%d,%d],", 0, 0);
+    }
+  }
+  strcpy(best_buf+strlen(best_buf),"]]})");
+  emscripten_run_script(best_buf);
+#else
   printf("best: ");
   for(pos1=0; pos1<width*height; pos1++) {
     ord1 = pos2ord[pos1];
@@ -66,18 +99,38 @@ print_puzz(int ord) {
     }
   }
   printf("\n");
+#endif
   print_status();
 }
 
 int
-main(int argc, char *argv[]) {
+origmain(char *argv1, char *argv2) {
   int row, col, i, j, k, piecenum, rot, k1, k2, k3, k4, ord1, ord2,
     placed[WIDTH*HEIGHT+1],pos1, pos2;
-  char temp_edges[9], c, max_edge = 'a', tempstr[5];
+  char temp_edges[9], c, max_edge = 'a', tempstr[5], msg[128];
   piecelist_t *pl;
   piece_t *p;
+  unsigned int rnd=0;
 
-  srand(atoi(argv[1]));
+  core = atoi(argv1);
+  sprintf(msg,"postMessage('core = %d');", core);
+#ifdef __EMSCRIPTEN__
+  emscripten_run_script(msg);
+#else
+  puts(msg);
+#endif
+
+#ifdef __EMSCRIPTEN__
+  rnd = EM_ASM_INT({
+      return Math.floor(Math.random() * 2**32);
+    });
+  sprintf(msg,"postMessage('seed = %u');", rnd);
+  emscripten_run_script(msg);
+  srand(rnd);
+#else
+  //srand(time(NULL)*1000+getpid()%1000);
+  srand(atoi(argv2));
+#endif
   for(piecenum=0; piecenum<=width*height; piecenum++) {
     placed[piecenum] = (piecenum==0);
     k = 0;
@@ -179,3 +232,25 @@ main(int argc, char *argv[]) {
   start_time = time(NULL)-1;
 #include "gensrc.c"
 }
+
+#ifdef __EMSCRIPTEN__
+
+int
+main() {
+  emscripten_run_script(
+    "onmessage = function(e) {"
+    " console.log('Message received from main script: ' + e.data);"
+    "Module.ccall('origmain','number',['string','string'],['0',e.data]);}");
+  emscripten_run_script("postMessage('worker is ready');");
+  printf("and we're off...\n");
+  return 0;
+}
+
+#else
+
+int
+main(int argc, char *argv[]) {
+  origmain(argv[1],argv[2]);
+  exit(0);
+}
+#endif
