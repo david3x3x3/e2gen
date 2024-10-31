@@ -13,7 +13,7 @@
 #define FALSE 0
 
 int height=WIDTH, width=HEIGHT, best=0, core=0;
-long long nodes=0;
+long long nodes=0, best_node=0;
 time_t start_time;
 
 typedef struct piece_s {
@@ -50,11 +50,39 @@ shuffle(int *array, size_t n) {
 }
 
 void
+bignum_fmt(char *s, long long val) {
+  char unit_names[] = "!kmgtpezy", unit[2];
+  int unit_num=0;
+
+  while (val >= 10000) {
+    unit_num++;
+    val /= 1000;
+  }
+  if (val < 1000) {
+    sprintf(unit, "%c", unit_names[unit_num]);
+    if (unit[0] == '!') unit[0] = '\0';
+    sprintf(s, "%lld%s", val, unit);
+  } else {
+    unit_num++;
+    sprintf(unit, "%c", unit_names[unit_num]);
+    if (unit[0] == '!') unit[0] = '\0';
+    sprintf(s, "%lld.%02lld%s", val/1000, (val%1000)/10, unit);
+  }
+}
+
+void
 print_status() {
   char msg[1024];
   char msg2[1024];
-  // sprintf(msg, "status {'best': %d, 'nodes': %lld, 'time': %lld, 'rate': %lld}\n", best, nodes, time(NULL)-start_time, nodes/(time(NULL)-start_time));
-  sprintf(msg, "best=%d nodes=%lld time=%lld rate=%lld", best, nodes, time(NULL)-start_time, nodes/(time(NULL)-start_time));
+  long long rate;
+  char nodes_disp[6], rate_disp[6], bestn_disp[6];
+  
+  bignum_fmt(nodes_disp, nodes);
+  rate = nodes/(time(NULL)-start_time);
+  bignum_fmt(rate_disp, rate);
+  bignum_fmt(bestn_disp, best_node);
+  sprintf(msg, "best=%d (%s) nodes=%s time=%lld rate=%s", best, bestn_disp,
+	  nodes_disp, time(NULL)-start_time, rate_disp);
 #ifdef EMSCRIPTEN
   fflush(stdout);
   sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);

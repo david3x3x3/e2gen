@@ -147,6 +147,7 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'    if (Q[{ord1}].pieces->piece) {{\n'
         src2 += f'      placed[Q[{ord1}].pieces->piece->piecenum] -= 1;\n'
         src2 += f'    }}\n'
+        src2 += f'  case{ord1}_dup:\n'
         src2 += f'    Q[{ord1}].pieces = Q[{ord1}].pieces->next;\n'
         src2 += f'    if (!Q[{ord1}].pieces) {{\n'
         src2 += f'      Q[{ord1}].active = FALSE;\n'
@@ -160,8 +161,8 @@ with open('gensrc.c', 'w') as fp:
             src2 += f'    if (placed[p->piecenum] || p->piecenum != {hints[pos1][0]} || p->rot != {hints[pos1][1]}) {{\n'
         else:
             src2 += f'    if (placed[p->piecenum]) {{\n'
-        src2 += f'      placed[p->piecenum]++;\n'
-        src2 += f'      goto case{ord1};\n'
+        # src2 += f'      placed[p->piecenum]++;\n'
+        src2 += f'      goto case{ord1}_dup;\n'
         src2 += f'    }}\n'
         src2 += f'    nodes += 1;\n'
         src2 += f'    if (nodes % 100000000 == 0) {{\n'
@@ -170,6 +171,7 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'    placed[p->piecenum] = 1;\n'
         src2 += f'    if ({ord1+1} > best) {{\n'
         src2 += f'      best = {ord1+1};\n'
+        src2 += f'      best_node = nodes;\n'
         src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'    }}\n'
 
