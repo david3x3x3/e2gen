@@ -59,15 +59,41 @@ for key1, val in pieces.items():
 # for k in fit:
 #     print(k, fit[k])
 # sys.exit(0)
-# hints = { 135: (139,2), 34: (208,3), 45: (255,3), 210: (181, 3), 221: (249, 0) }
-hints = { 135: (139,2) }
+
+hints = ((135, (139,2)), (34, (208,3)), (45, (255,3)), 
+         (210, (181, 3)), (221, (249, 0)))
+num_hints = int(sys.argv[2])
+hints_dict = { k: v for k, v in hints[:num_hints] }
+# hints = { 135: (139,2) }
 #hints = {}
 dirs = (-1, 0), (0, 1), (1, 0), (0, -1)
 
 solcount = 0
 
+def build_rowscan():
+    global pos2ord, ord2pos, num_hints
+    r1 = 0
+    c1 = 0
+    i = 0
+    dir = 0
+    pos2ord = [-1]*(width*height)
+    ord2pos_ = [-1]*(width*height)
+    ord2pos = []
+    # build rowscan without hints
+    ord2pos_ = [x for x in range(width*height)]
+    # redo the order with just the hint pieces
+    for pos1 in hints_dict:
+        ord2pos += [pos1]
+    # copy locations from the original order to the new order if they aren't hints
+    for pos1 in ord2pos_:
+        if pos1 not in hints_dict:
+            ord2pos += [pos1]
+    # build ord2pos from pos2ord
+    for ord1, pos1 in enumerate(ord2pos):
+        pos2ord[pos1] = ord1
+    
 def build_spiral():
-    global pos2ord, ord2pos
+    global pos2ord, ord2pos, num_hints
     r1 = 0
     c1 = 0
     i = 0
@@ -89,17 +115,23 @@ def build_spiral():
         c1 = c1 + dirs[dir][1]
         i += 1
     # redo the order with just the hint pieces
-    for pos1 in hints:
+    for pos1 in hints_dict:
         ord2pos += [pos1]
     # copy locations from the original order to the new order if they aren't hints
     for pos1 in ord2pos_:
-        if pos1 not in hints:
+        if pos1 not in hints_dict:
             ord2pos += [pos1]
     # build ord2pos from pos2ord
     for ord1, pos1 in enumerate(ord2pos):
         pos2ord[pos1] = ord1
 
-build_spiral()
+if sys.argv[1] == 'row':
+    build_rowscan()
+elif sys.argv[1] == 'spiral':
+    build_spiral()
+else:
+    print('unknown piece order scheme: {sys.argv[1]}')
+    sys.exit(0)
 
 with open('genheader.h', 'w') as fp:
     pdata = "".join(piece_data.split("\n"))
@@ -110,7 +142,7 @@ with open('genheader.h', 'w') as fp:
     fp.write(f'int pos2ord[] = {{ {pdata} }};\n')
     fp.write(f'#define WIDTH 16\n')
     fp.write(f'#define HEIGHT 16\n')
-    fp.write(f'#define NUM_HINTS {len(hints)}\n')
+    fp.write(f'#define NUM_HINTS {num_hints}\n')
 
 with open('gensrc.c', 'w') as fp:
     src2 = ''
@@ -157,8 +189,8 @@ with open('gensrc.c', 'w') as fp:
             src2 += f'      return 0;\n'
         src2 += f'    }}\n'
         src2 += f'    p = Q[{ord1}].pieces->piece;\n'
-        if ord1 < len(hints):
-            src2 += f'    if (placed[p->piecenum] || p->piecenum != {hints[pos1][0]} || p->rot != {hints[pos1][1]}) {{\n'
+        if ord1 < num_hints:
+            src2 += f'    if (placed[p->piecenum] || p->piecenum != {hints_dict[pos1][0]} || p->rot != {hints_dict[pos1][1]}) {{\n'
         else:
             src2 += f'    if (placed[p->piecenum]) {{\n'
         # src2 += f'      placed[p->piecenum]++;\n'

@@ -88,7 +88,8 @@ print_status() {
   sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
   emscripten_run_script(msg2);
 #else
-  printf("%s", msg);
+  printf("%s\n", msg);
+  fflush(stdout);
 #endif
 }
 
