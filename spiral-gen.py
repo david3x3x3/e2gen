@@ -117,12 +117,15 @@ def build_spiral():
 
     # put 33 before 17, otherwise 33 will be boxed in on all sides and
     # hard to fill
-    ord2pos_ = [i for i in ord2pos_ if i != 33]
-    ord2pos_.insert(ord2pos_.index(17), 33)
+    if num_hints == 5:
+        ord2pos_ = [i for i in ord2pos_ if i != 33]
+        ord2pos_.insert(ord2pos_.index(17), 33)
+        
     # redo the order with just the hint pieces
     for pos1 in hints_dict:
         ord2pos += [pos1]
-    # copy locations from the original order to the new order if they aren't hints
+    # copy locations from the original order to the new order if they
+    # aren't hints
     for pos1 in ord2pos_:
         if pos1 not in hints_dict:
             ord2pos += [pos1]
