@@ -173,14 +173,15 @@ print_status(int after_best) {
 #endif
   }
   if (nodes >= 60000) {
-    if (best<107 ||
-	(nodes >= 1000000 && best<117) ||
-	(nodes >= 1000000000 && best<192) ||
-	(nodes >= 20000000000 && best<208)) {
-      // these thresholds were designed for spiral with hints, but
-      // they work ok for other arrangements
-      return restart();
-    }
+    if (!after_best)
+      if (best<107 ||
+	  (nodes >= 1000000 && best<117) ||
+	  (nodes >= 1000000000 && best<192) ||
+	  (nodes >= 20000000000 && best<208)) {
+	// these thresholds were designed for spiral with hints, but
+	// they work ok for other arrangements
+	return restart();
+      }
     status_interval = 100000000;
   }
   return 0;
