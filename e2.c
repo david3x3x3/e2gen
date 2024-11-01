@@ -13,7 +13,7 @@
 #define FALSE 0
 
 int height=WIDTH, width=HEIGHT, best=0, core=0, status_interval, restarts=0;
-int fit_size1, fit_size2, placed[WIDTH*HEIGHT+1];
+int fit_size1, fit_size2, placed[WIDTH*HEIGHT+1], bestbest=0;
 long long nodes=0, best_node=0;
 time_t start_time;
 
@@ -80,10 +80,14 @@ restart() {
   int i, j, k, rot, ord1, pos1, piecenum;
   int porder[WIDTH*HEIGHT];
 
-  /* if ((++restarts % 100) == 0) { */
-  /*   printf("restart #%d\n", restarts); */
-  /* } */
+  if (best > bestbest) {
+    bestbest = best;
+  }
   restarts++;
+  if ((restarts % 20) == 0) {
+    printf("status restart #%d best=%d\n", restarts, bestbest);
+    fflush(stdout);
+  }
   nodes=best_node=0;
   best=0;
   status_interval=60000;
@@ -162,13 +166,14 @@ print_status(int after_best) {
   bignum_fmt(rate_disp, rate);
   bignum_fmt(bestn_disp, best_node);
   sprintf(msg, "best=%d (%s) nodes=%s time=%lld rate=%s restarts=%d", best,
-	  bestn_disp, nodes_disp, time(NULL)-start_time, rate_disp, restarts);
+	  bestn_disp, nodes_disp, (long long)time(NULL)-start_time, rate_disp,
+	  restarts);
   if (after_best || nodes >= 1000000) {
 #ifdef EMSCRIPTEN
     sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
     emscripten_run_script(msg2);
 #else
-    printf("%s\n", msg);
+    printf("status %s\n", msg);
     fflush(stdout);
 #endif
   }
@@ -252,6 +257,7 @@ origmain(char *argv1, char *argv2) {
   srand(rnd);
 #else
   //srand(time(NULL)*1000+getpid()%1000);
+  printf("seed = %d\n", atoi(argv2));
   srand(atoi(argv2));
 #endif
   for(piecenum=0; piecenum<=width*height; piecenum++) {
