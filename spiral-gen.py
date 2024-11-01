@@ -114,6 +114,11 @@ def build_spiral():
         r1 = r1 + dirs[dir][0]
         c1 = c1 + dirs[dir][1]
         i += 1
+
+    # put 33 before 17, otherwise 33 will be boxed in on all sides and
+    # hard to fill
+    ord2pos_ = [i for i in ord2pos_ if i != 33]
+    ord2pos_.insert(ord2pos_.index(17), 33)
     # redo the order with just the hint pieces
     for pos1 in hints_dict:
         ord2pos += [pos1]
@@ -121,7 +126,7 @@ def build_spiral():
     for pos1 in ord2pos_:
         if pos1 not in hints_dict:
             ord2pos += [pos1]
-    # build ord2pos from pos2ord
+    # build pos2ord from ord2pos
     for ord1, pos1 in enumerate(ord2pos):
         pos2ord[pos1] = ord1
 
@@ -197,14 +202,16 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'      goto case{ord1}_dup;\n'
         src2 += f'    }}\n'
         src2 += f'    nodes += 1;\n'
-        src2 += f'    if (nodes % 100000000 == 0) {{\n'
-        src2 += f'      print_status();\n'
+        src2 += f'    if (nodes % status_interval == 0) {{\n'
+        src2 += f'      if (print_status(0))\n'
+        src2 += f'        goto case0;\n'
         src2 += f'    }}\n'
         src2 += f'    placed[p->piecenum] = 1;\n'
         src2 += f'    if ({ord1+1} > best) {{\n'
         src2 += f'      best = {ord1+1};\n'
         src2 += f'      best_node = nodes;\n'
-        src2 += f'      print_puzz({ord1+1});\n'
+        if ord1+1 >= 94:
+            src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'    }}\n'
 
         fp.write(src2)

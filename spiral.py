@@ -59,8 +59,8 @@ for key1, val in pieces.items():
 # for k in fit:
 #     print(k, fit[k])
 # sys.exit(0)
-# hints = { 135: (139,2), 34: (208,3), 45: (255,3), 210: (181, 3), 221: (249, 0) }
-hints = { 135: (139,2) }
+hints = { 135: (139,2), 34: (208,3), 45: (255,3), 210: (181, 3), 221: (249, 0) }
+# hints = { 135: (139,2) }
 #hints = {}
 dirs = (-1, 0), (0, 1), (1, 0), (0, -1)
 
@@ -126,6 +126,7 @@ def restart():
     for i, pos1 in enumerate(hints):
         Q[i] = [hints[pos1]]
         placed[hints[pos1][0]] = True
+    # print('.', end='', flush=True)
 
 def speed_report():
     t = int(time.time())-start_time
@@ -156,7 +157,7 @@ for ord1 in range(width*height):
     # src += f'    print("order {ord1}")\n'
     src += f'    if {ord1} > best:\n'
     src += f'        best = {ord1}\n'
-    src += f'        if {ord1} > 60:\n'
+    src += f'        if {ord1} >= 92:\n'
     src += f'            print_puzz({ord1})\n'
     src +=  "            print(f'{27:c}]0;{best}{7:c}', flush=True, end='')\n"
     src += f'    if Q[{ord1}] == None:\n'
@@ -189,18 +190,20 @@ for ord1 in range(width*height):
     src += f'        placed[Q[{ord1}][0][0]] = True\n'
     src += f'        nodes += 1\n'
     src += f'        if nodes % rate == 0:\n'
-    src += f'            if rate > 10000:\n'
-    src += f'                speed_report()\n'
-    src += f'            if (nodes == 20000):\n'
-    src += f'                if (best < 136):\n'
+    # src += f'            if rate > 10000:\n'
+    # src += f'            if (nodes == 20000):\n'
+    # src += f'                if (best < 136):\n'
     # all 5 hints:
     # src += f'            if (nodes == 2000000 and best < 106) or (nodes == 100000000 and best < 106):\n'
     # src += f'            if (nodes == 1000000 and best < 90) or (nodes == 100000000 and best < 106):\n'
-    # src += f'            if (nodes == 10000 and best < 93) or (nodes == 1000000 and best < 174) or (nodes == 2000000 and best < 192):\n'
-    src += f'                    restart()\n'
-    src += f'                    return {len(hints)}\n'
-    src += f'                else:\n'
-    src += f'                    rate = 1000000\n'
+    # src += f'            if (nodes == 20000 and best < 106) or (nodes == 1000000 and best < 174) or (nodes == 2000000 and best < 192):\n'
+    src += f'            if (nodes == 20000 and best < 106) or (nodes == 1000000 and best < 117):\n'
+    src += f'                restart()\n'
+    src += f'                return {len(hints)}\n'
+    src += f'            if nodes == 20000:\n'
+    src += f'                rate = 1000000\n'
+    src += f'            elif nodes > 20000:\n'
+    src += f'                speed_report()\n'
     src += f'        return {ord1+1}\n'
     src += f'    Q[{ord1}] = None\n'
     src += f'    return {ord1-1}\n'

@@ -12,7 +12,8 @@
 #define TRUE 1
 #define FALSE 0
 
-int height=WIDTH, width=HEIGHT, best=0, core=0;
+int height=WIDTH, width=HEIGHT, best=0, core=0, status_interval, restarts=0;
+int fit_size1, fit_size2, placed[WIDTH*HEIGHT+1];
 long long nodes=0, best_node=0;
 time_t start_time;
 
@@ -28,6 +29,8 @@ typedef struct piecelist_s {
   piece_t *piece;
   struct piecelist_s *next;
 } piecelist_t;
+
+piecelist_t **fit_table;
 
 typedef struct {
   int active;
@@ -70,8 +73,85 @@ bignum_fmt(char *s, long long val) {
   }
 }
 
-void
-print_status() {
+int
+restart() {
+  piecelist_t *pl;
+  piece_t *p;
+  int i, j, k, rot, ord1, pos1, piecenum;
+  int porder[WIDTH*HEIGHT];
+
+  /* if ((++restarts % 100) == 0) { */
+  /*   printf("restart #%d\n", restarts); */
+  /* } */
+  restarts++;
+  nodes=best_node=0;
+  best=0;
+  status_interval=60000;
+  for(i=0; i<=width*height; i++) {
+    placed[i] = (i==0);
+  }
+
+  for(i=0; i<fit_size2; i++) {
+    while(fit_table[i]) {
+      pl = fit_table[i];
+      fit_table[i] = pl->next;
+      free(pl);
+    }
+  }
+  // recompute the fit table with a random order
+  for (ord1=0; ord1<width*height; ord1++) {
+    porder[ord1] = ord1+1;
+  }
+  shuffle(porder, width*height);
+  for(pos1=0; pos1<width*height; pos1++) {
+    piecenum = porder[pos1];
+    for (rot=0; rot<4; rot++) {
+      p = &pieces[piecenum][rot];
+      // printf("checking %d/%d\n", p->piecenum, p->rot);
+      // printf("%d/%d\n", piecenum, rot);
+      for (i=0; i<16; i++) {
+	int ok = TRUE;
+	k = 0;
+	for (j=0; j<4; j++) {
+	  k *= fit_size1;
+	  if (i & 1<<j) {
+	    //printf("yes ");
+	    k += p->edges[j];
+	  } else {
+	    //printf("no  ");
+	    if (p->edges[j] != 0) {
+	      k += fit_size1-1;
+	    } else {
+	      ok = FALSE;
+	      break;
+	    }
+	  }
+	}
+	if (ok) {
+	  pl = malloc(sizeof(piecelist_t));
+	  pl->piece = p;
+	  pl->next = fit_table[k];
+	  fit_table[k] = pl;
+	}
+	//printf("\n");
+      }
+    }
+  }
+  // add a null tile to the beginning of each list to simplify the search logic
+  for (k=0; k<fit_size2; k++) {
+    pl = malloc(sizeof(piecelist_t));
+    pl->piece = NULL;
+    pl->next = fit_table[k];
+    fit_table[k] = pl;
+  }
+
+  start_time = time(NULL)-1;
+  bzero(Q, width*height*sizeof(square_t));
+  return 1;
+}
+
+int
+print_status(int after_best) {
   char msg[1024];
   char msg2[1024];
   long long rate;
@@ -81,16 +161,29 @@ print_status() {
   rate = nodes/(time(NULL)-start_time);
   bignum_fmt(rate_disp, rate);
   bignum_fmt(bestn_disp, best_node);
-  sprintf(msg, "best=%d (%s) nodes=%s time=%lld rate=%s", best, bestn_disp,
-	  nodes_disp, time(NULL)-start_time, rate_disp);
+  sprintf(msg, "best=%d (%s) nodes=%s time=%lld rate=%s restarts=%d", best,
+	  bestn_disp, nodes_disp, time(NULL)-start_time, rate_disp, restarts);
+  if (after_best || nodes >= 1000000) {
 #ifdef EMSCRIPTEN
-  fflush(stdout);
-  sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
-  emscripten_run_script(msg2);
+    sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
+    emscripten_run_script(msg2);
 #else
-  printf("%s\n", msg);
-  fflush(stdout);
+    printf("%s\n", msg);
+    fflush(stdout);
 #endif
+  }
+  if (nodes >= 60000) {
+    if (best<107 ||
+	(nodes >= 1000000 && best<117) ||
+	(nodes >= 1000000000 && best<192) ||
+	(nodes >= 20000000000 && best<208)) {
+      // these thresholds were designed for spiral with hints, but
+      // they work ok for other arrangements
+      return restart();
+    }
+    status_interval = 100000000;
+  }
+  return 0;
 }
 
 #ifdef __EMSCRIPTEN__
@@ -129,13 +222,13 @@ print_puzz(int ord) {
   }
   printf("\n");
 #endif
-  print_status();
+  print_status(1);
 }
 
 int
 origmain(char *argv1, char *argv2) {
   int row, col, i, j, k, piecenum, rot, k1, k2, k3, k4, ord1, ord2,
-    placed[WIDTH*HEIGHT+1],pos1, pos2;
+    pos1, pos2;
   char temp_edges[9], c, max_edge = 'a', tempstr[5], msg[128];
   piecelist_t *pl;
   piece_t *p;
@@ -188,77 +281,15 @@ origmain(char *argv1, char *argv2) {
   }
   //printf("piece_data = %s\n", piece_data);
   printf("max_edge = %d\n", max_edge-'a');
-  int fit_size1 = max_edge-'a'+2;
-  int fit_size2 = 1;
+  fit_size1 = max_edge-'a'+2;
+  fit_size2 = 1;
   for (i=0; i<4; i++) {
     fit_size2 *= fit_size1;
   }
-  piecelist_t **fit_table = calloc(fit_size2, sizeof(piecelist_t *));
-  int porder[WIDTH*HEIGHT];
-  for (ord1=0; ord1<width*height; ord1++) {
-    porder[ord1] = ord1+1;
-  }
-  shuffle(porder, width*height);
-  for(pos1=0; pos1<width*height; pos1++) {
-    piecenum = porder[pos1];
-    for (rot=0; rot<4; rot++) {
-      p = &pieces[piecenum][rot];
-      // printf("checking %d/%d\n", p->piecenum, p->rot);
-      // printf("%d/%d\n", piecenum, rot);
-      for (i=0; i<16; i++) {
-	int ok = TRUE;
-	k = 0;
-	for (j=0; j<4; j++) {
-	  k *= fit_size1;
-	  if (i & 1<<j) {
-	    //printf("yes ");
-	    k += p->edges[j];
-	  } else {
-	    //printf("no  ");
-	    if (p->edges[j] != 0) {
-	      k += fit_size1-1;
-	    } else {
-	      ok = FALSE;
-	      break;
-	    }
-	  }
-	}
-	if (ok) {
-	  pl = malloc(sizeof(piecelist_t));
-	  pl->piece = p;
-	  pl->next = fit_table[k];
-	  fit_table[k] = pl;
-	}
-	//printf("\n");
-      }
-    }
-  }
-  // add a null tile to the beginning of each list to simplify the search logic
-  for (k=0; k<fit_size2; k++) {
-    pl = malloc(sizeof(piecelist_t));
-    pl->piece = NULL;
-    pl->next = fit_table[k];
-    fit_table[k] = pl;
-  }
-  if (FALSE) {
-    for (i=0; i<fit_size2; i++) {
-      k1 = i;
-      k4 = k1 % fit_size1; k1 /= fit_size1;
-      k3 = k1 % fit_size1; k1 /= fit_size1;
-      k2 = k1 % fit_size1; k1 /= fit_size1;
-      if (fit_table[i] != NULL) {
-	printf("%d %d %d %d %d - ", i, k1, k2, k3, k4);
-	for(pl = fit_table[i]; pl != NULL; pl = pl->next) {
-	  printf("%s ", pl->piece->edgestr);
-	}
-	printf("\n");
-      }
-    }
-  }
-  printf("table size = %d\n", fit_size2);
+  fit_table = calloc(fit_size2, sizeof(piecelist_t *));
   int dirs[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
   Q = calloc(width*height, sizeof(square_t));
-  start_time = time(NULL)-1;
+  restart();
 #include "gensrc.c"
 }
 
