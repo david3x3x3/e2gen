@@ -77,19 +77,24 @@ bignum_fmt(char *s, long long val) {
   char unit_names[] = "!kmgtpezy", unit[2];
   int unit_num=0;
 
-  while (val >= 10000) {
+  while (val >= 100000) {
     unit_num++;
     val /= 1000;
   }
-  if (val < 1000) {
-    sprintf(unit, "%c", unit_names[unit_num]);
-    if (unit[0] == '!') unit[0] = '\0';
-    sprintf(s, "%lld%s", val, unit);
-  } else {
+  if (val >= 1000) {
     unit_num++;
-    sprintf(unit, "%c", unit_names[unit_num]);
-    if (unit[0] == '!') unit[0] = '\0';
+  }
+  sprintf(unit, "%c", unit_names[unit_num]);
+  if (unit[0] == '!') unit[0] = '\0';
+  if (val < 1000) {
+    // NNN
+    sprintf(s, "%lld%s", val, unit);
+  } else if (val < 10000) {
+    // N.NN
     sprintf(s, "%lld.%02lld%s", val/1000, (val%1000)/10, unit);
+  } else {
+    // NN.N
+    sprintf(s, "%lld.%lld%s", val/1000, (val%1000)/100, unit);
   }
 }
 
@@ -99,119 +104,125 @@ restart() {
   piece_t *p;
   int i, j, k, m, rot, ord1, pos1, piecenum;
   int porder[WIDTH*HEIGHT];
+  char msg[1024];
+  char msg2[1024];
 
   if (best > bestbest) {
     bestbest = best;
   }
   restarts++;
-  if ((restarts % 100) == 0) {
-    printf("status restart #%d best=%d\n", restarts, bestbest);
+  if ((restarts % 5000) == 0) {
+    sprintf(msg, "best=%d restarts=%d", bestbest, restarts);
+#ifdef EMSCRIPTEN
+    sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
+    emscripten_run_script(msg2);
+#else
+    printf("status %s\n", msg);
     fflush(stdout);
+#endif
   }
   nodes=best_node=0;
   best=0;
-  status_interval=60000;
+  status_interval=20000;
   for(i=0; i<=width*height; i++) {
     placed[i] = (i==0);
   }
-
-  if (fit_entries == NULL) {
-    // recompute the fit table with a random order
-    for (ord1=0; ord1<width*height; ord1++) {
-      porder[ord1] = ord1+1;
-    }
-    shuffle(porder, width*height);
-    for(pos1=0; pos1<width*height; pos1++) {
-      piecenum = porder[pos1];
-      for (rot=0; rot<4; rot++) {
-	p = &pieces[piecenum][rot];
-	// printf("checking %d/%d\n", p->piecenum, p->rot);
-	// printf("%d/%d\n", piecenum, rot);
-	for (i=0; i<16; i++) {
-	  int ok = TRUE;
-	  k = 0;
-	  for (j=0; j<4; j++) {
-	    k *= fit_size1;
-	    if (i & 1<<j) {
-	      //printf("yes ");
-	      k += p->edges[j];
-	    } else {
-	      //printf("no  ");
-	      if (p->edges[j] != 0) {
-		k += fit_size1-1;
-	      } else {
-		ok = FALSE;
-		break;
-	      }
-	    }
-	  }
-	  if (ok) {
-	    pl = malloc(sizeof(piecelist_t));
-	    pl->piece = p;
-	    pl->next = fit_table[k];
-	    fit_table[k] = pl;
-	  }
-	  //printf("\n");
-	}
-      }
-    }
-
-    // figure out which entries in fit_table are populated to make it
-    // easier to go back and scramble them.
-    printf("fit_size2 = %d\n", fit_size2);
-    i = m=0;
-    for (k=0; k<fit_size2; k++) {
-      if(fit_table[k] != NULL) {
-	m++;
-	//printf("fit_table[%d]: ", k);
-	j=0;
-	for(pl=fit_table[k]; pl!=NULL; pl=pl->next) {
-	  //printf("%s ", pl->piece->edgestr);
-	  j++;
-	}
-	//printf(" (len=%d)\n", j);
-	if(j>1) {
-	  // count how many entries there are
-	  i++;
-	}
-      }
-    }
-    printf("%d entries\n", m);
-    printf("%d long entries\n", i);
-    fit_entries = malloc((i+1)*sizeof(int));
-    i = 0;
-    for (k=0; k<fit_size2; k++) {
-      if(fit_table[k] != NULL) {
-	j=0;
-	for(pl=fit_table[k]; pl!=NULL; pl=pl->next) {
-	  //printf("%s ", pl->piece->edgestr);
-	  j++;
-	}
-	if(j>1) {
-	  // record the entries
-	  fit_entries[i++] = k;
-	}
-      }
-    }
-    fit_entries[i++] = -1; // so we can find the end
-  
-    // add a null tile to the beginning of each list to simplify the search logic
-    for (k=0; k<fit_size2; k++) {
-      pl = malloc(sizeof(piecelist_t));
-      pl->piece = NULL;
-      pl->next = fit_table[k];
-      fit_table[k] = pl;
-    }
-  } else {
+  start_time = time(NULL)-1;
+  bzero(Q, width*height*sizeof(square_t));
+  if (fit_entries != NULL) {
     // we built the fit_table once, so just shuffle instead of rebuilding
     for(i=0; fit_entries[i] >= 0; i++) {
       pl = fit_table[fit_entries[i]];
       pl->next = shuffle_piecelist(pl->next);
     }
+    return 1;
+  }
+  // randomize the initial building of the fit table
+  for (ord1=0; ord1<width*height; ord1++) {
+    porder[ord1] = ord1+1;
+  }
+  shuffle(porder, width*height);
+  for(pos1=0; pos1<width*height; pos1++) {
+    piecenum = porder[pos1];
+    for (rot=0; rot<4; rot++) {
+      p = &pieces[piecenum][rot];
+      // printf("checking %d/%d\n", p->piecenum, p->rot);
+      // printf("%d/%d\n", piecenum, rot);
+      for (i=0; i<16; i++) {
+	int ok = TRUE;
+	k = 0;
+	for (j=0; j<4; j++) {
+	  k *= fit_size1;
+	  if (i & 1<<j) {
+	    //printf("yes ");
+	    k += p->edges[j];
+	  } else {
+	    //printf("no  ");
+	    if (p->edges[j] != 0) {
+	      k += fit_size1-1;
+	    } else {
+	      ok = FALSE;
+	      break;
+	    }
+	  }
+	}
+	if (ok) {
+	  pl = malloc(sizeof(piecelist_t));
+	  pl->piece = p;
+	  pl->next = fit_table[k];
+	  fit_table[k] = pl;
+	}
+	//printf("\n");
+      }
+    }
   }
 
-  start_time = time(NULL)-1;
-  bzero(Q, width*height*sizeof(square_t));
+  // figure out which entries in fit_table are populated to make it
+  // easier to go back and scramble them.
+  printf("fit_size2 = %d\n", fit_size2);
+  i = m=0;
+  for (k=0; k<fit_size2; k++) {
+    if(fit_table[k] != NULL) {
+      m++;
+      //printf("fit_table[%d]: ", k);
+      j=0;
+      for(pl=fit_table[k]; pl!=NULL; pl=pl->next) {
+	//printf("%s ", pl->piece->edgestr);
+	j++;
+      }
+      //printf(" (len=%d)\n", j);
+      if(j>1) {
+	// count how many entries there are
+	i++;
+      }
+    }
+  }
+  printf("%d entries\n", m);
+  printf("%d long entries\n", i);
+  fit_entries = malloc((i+1)*sizeof(int));
+  i = 0;
+  for (k=0; k<fit_size2; k++) {
+    if(fit_table[k] != NULL) {
+      j=0;
+      for(pl=fit_table[k]; pl!=NULL; pl=pl->next) {
+	//printf("%s ", pl->piece->edgestr);
+	j++;
+      }
+      if(j>1) {
+	// record the entries
+	fit_entries[i++] = k;
+      }
+    }
+  }
+  fit_entries[i++] = -1; // so we can find the end
+  
+  // add a null tile to the beginning of each list to simplify the search logic
+  for (k=0; k<fit_size2; k++) {
+    pl = malloc(sizeof(piecelist_t));
+    pl->piece = NULL;
+    pl->next = fit_table[k];
+    fit_table[k] = pl;
+  }
   return 1;
 }
 
@@ -238,17 +249,17 @@ print_status(int after_best) {
     fflush(stdout);
 #endif
   }
-  if (nodes >= 60000) {
-    if (!after_best)
-      if (best<107 ||
-	  (nodes >= 1000000 && best<117) ||
-	  (nodes >= 1000000000 && best<192) ||
-	  (nodes >= 20000000000 && best<208)) {
-	// these thresholds were designed for spiral with hints, but
-	// they work ok for other arrangements
-	return restart();
-      }
+  if (nodes >= 20000) {
     status_interval = 100000000;
+  }
+  if (!after_best) {
+    if (best<127 ||
+	(nodes >= 100000000 && best<192) ||
+	(nodes >= 20000000000 && best<208)) {
+      // these thresholds were designed for spiral with hints, but
+      // they work ok for other arrangements
+      return restart();
+    }
   }
   return 0;
 }

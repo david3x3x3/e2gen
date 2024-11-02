@@ -213,7 +213,8 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'    if ({ord1+1} > best) {{\n'
         src2 += f'      best = {ord1+1};\n'
         src2 += f'      best_node = nodes;\n'
-        if ord1+1 >= 94:
+        # if ord1+1 >= 94:
+        if ord1+1 >= 127:
             src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'    }}\n'
 
