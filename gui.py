@@ -52,7 +52,7 @@ def print_best():
     if len(board) < 256:
         return
     log = list(board)
-    rs = procs+2
+    rs = procs+3
     for r in range(16):
         goto_rc(rs, 1, False)
         rs += 1
@@ -130,7 +130,7 @@ all_processes = [None]*procs
 
 def start_proc(n):
     global all_processes
-    cmd = ['./spiral-hints', str(n), str(random.getrandbits(32))]
+    cmd = ['./spiral', str(n), str(random.getrandbits(32))]
     p = Popen(cmd, stdout=PIPE, bufsize=1, close_fds=ON_POSIX)
     all_processes[n] = p
     t = Thread(target=enqueue_output, args=(p.stdout, q, n))
@@ -172,12 +172,46 @@ statuses = []
 for i in range(procs):
     statuses += ['']
 
+def nodefmt(x):
+    mag = 0
+    if x < 1000:
+        return str(x)
+    while x >= 1000:
+        mag += 1
+        x /= 1000
+    return f'{x:.2f}{" kmgtpezyb"[mag]}'
+
 def print_status(num, hilight):
     goto_rc(num+1, 1, True)
     if num == curs and hilight:
         print('%c[7m' % 27, end='')
     # print('%X %s%c[m ' % (num, statuses[num], 27), flush=hilight, end='')
-    print('%2d %s%c[m%c[K' % (num+1, statuses[num], 27, 27), flush=True, end='')
+    num_nodes = 0
+    nodes_total = 0
+    num_rates = 0
+    rates_total = 0
+    for i, status in enumerate(statuses):
+        statusf = []
+        fields = status.split(' ')
+        for field in fields:
+            field_parts = field.split('=')
+            if field_parts[0] == 'nodes':
+                num_nodes += 1
+                nodes_total += int(field_parts[1])
+                field_parts[1] = nodefmt(int(field_parts[1]))
+            elif field_parts[0] == 'rate':
+                num_rates += 1
+                rates_total += int(field_parts[1])
+                field_parts[1] = nodefmt(int(field_parts[1]))
+            field = '='.join(field_parts)
+            statusf += [field]
+        if i == num:
+            statusf = ' '.join(statusf)
+            print('%2d %s%c[m%c[K' % (num+1, statusf, 27, 27), end='')
+            
+    avgrate = nodefmt(rates_total//procs)
+    goto_rc(procs+1, 1, True)
+    print('   nodes=%s rate=%s avgrate=%s%c[K' % (nodefmt(nodes_total), nodefmt(rates_total), avgrate, 27), end='', flush=True)
 
 print(f'{27:c}[2J',end='')
 while True:
@@ -194,7 +228,7 @@ while True:
                     for p in all_processes:
                         if p:
                             p.kill()
-                    goto_rc(16+procs+2,1, False)
+                    goto_rc(16+procs+3,1, False)
                     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
                     exit(0)
                 elif c == 'j': # next row

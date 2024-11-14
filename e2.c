@@ -237,8 +237,8 @@ print_status(int after_best) {
   rate = nodes/(time(NULL)-start_time);
   bignum_fmt(rate_disp, rate);
   bignum_fmt(bestn_disp, best_node);
-  sprintf(msg, "best=%d (%s) nodes=%s time=%lld rate=%s restarts=%d", best,
-	  bestn_disp, nodes_disp, (long long)time(NULL)-start_time, rate_disp,
+  sprintf(msg, "best=%d (%s) nodes=%lld time=%lld rate=%lld restarts=%d", best,
+	  bestn_disp, nodes, (long long)time(NULL)-start_time, rate,
 	  restarts);
   if (after_best || nodes >= 1000000) {
 #ifdef EMSCRIPTEN
