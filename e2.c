@@ -253,9 +253,10 @@ print_status(int after_best) {
     status_interval = 100000000;
   }
   if (!after_best) {
-    if (best<127 ||
+    if (width >= 16 && (
+	best<127 ||
 	(nodes >= 100000000 && best<192) ||
-	(nodes >= 20000000000 && best<208)) {
+	(nodes >= 20000000000 && best<208))) {
       // these thresholds were designed for spiral with hints, but
       // they work ok for other arrangements
       return restart();
@@ -362,6 +363,7 @@ origmain(char *argv1, char *argv2) {
   //printf("piece_data = %s\n", piece_data);
   printf("max_edge = %d\n", max_edge-'a');
   fit_size1 = max_edge-'a'+2;
+  printf("fit_size1 = %d\n", fit_size1);
   fit_size2 = 1;
   for (i=0; i<4; i++) {
     fit_size2 *= fit_size1;

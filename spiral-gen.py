@@ -1,24 +1,14 @@
 #!/usr/bin/env python3
-import random, time, sys
+import random, time, sys, re
 
-piece_data = """
-bdaa/beaa/cdaa/dcaa/gbab/hcab/jbab/jfab/mdab/oeab/pcab/teab/tfab/veab/hbac/idac/
-kfac/nfac/ocac/pcac/qeac/rbac/rfac/sbac/vbac/gcad/gdad/hdad/idad/ofad/pcad/sdad/
-tcad/tead/ufad/wead/ibae/lfae/mfae/ncae/ndae/pbae/pcae/pdae/qbae/seae/teae/ueae/
-gfaf/hbaf/hcaf/jbaf/oeaf/qeaf/qfaf/tdaf/ubaf/ufaf/vcaf/wdaf/jigg/kogg/hlgh/gtgi/
-iwgi/kkgi/mhgi/sjgi/wtgi/logl/orgl/kigm/pqgm/spgm/tlgm/kpgn/npgn/lugo/slgo/uvgo/
-nigp/iigq/mqgq/ingr/jkgr/trgr/usgr/gvgs/jwgs/qugs/mrgt/npgt/nqgt/qvgt/rkgt/vlgv/
-qngw/stgw/vjgw/wvgw/rphh/ruhh/unhh/wjhh/qphi/lthj/nthj/qphj/umhj/prhk/rphk/snhl/
-suhl/kqhm/orhm/rmhm/wuhm/lvhn/urho/twhp/kwhq/juhs/knhs/sphs/rwht/vpht/kjhu/nvhu/
-qlhu/sthu/jshv/rkhv/kuhw/mqhw/qlhw/ushw/soii/jlij/jmij/jrij/nvij/pjij/urij/vvij/
-lqik/iril/iwil/lkil/pril/jmin/qwin/mmio/mnio/wuio/ooiq/oriq/woiq/ouis/tjis/vvit/
-jsiu/ksiu/pmiw/quiw/lqjk/qtjk/lljm/mpjn/nvjn/qtjo/sujo/vmjo/ppjp/rsjp/ovjq/onjr/
-kqjs/rujt/tpjt/ouju/mujv/omjv/ntkk/wokl/nrkm/ttkm/vokn/kvko/lnko/unko/llkp/pskp/
-mokq/vmkr/vwkr/wpkr/mwks/ntks/ssks/nlkt/vtku/woku/rnkv/rtkv/ulkv/wvkv/woll/nwlm/
-tplm/mnlo/uplo/lulp/ttlq/lslr/qwlr/wvlr/npls/qrlu/mqlv/mulw/vvlw/vwlw/rwmm/somm/
-upmm/npmo/rrmo/ntmq/owms/utms/rsmt/rvmt/nsnn/uqno/oqnq/osnq/rpnq/qunr/pwns/vpns/
-ovnt/qvnt/prop/stop/wsoq/uwov/vwpp/rqpq/qvpr/uvps/wtqq/trqr/usrt/vusu/uwsw/vwtw
-"""
+with open('puzzles.txt', 'r') as fp:
+    lines = fp.readlines()
+    for i in range(len(lines)//2):
+        if lines[i*2].strip() == sys.argv[1]:
+            piece_data = lines[i*2+1].strip()
+            break
+        #print(f'puzzle {lines[i*2].strip()}: {lines[i*2+1].strip()}')
+print(piece_data)
 
 # targets with rectangle interior
 # 0 16 31 46 60 74 87 100 112 124 135 146 156 166 175 184 192 200 207
@@ -29,14 +19,28 @@ ovnt/qvnt/prop/stop/wsoq/uwov/vwpp/rqpq/qvpr/uvps/wtqq/trqr/usrt/vusu/uwsw/vwtw
 # square sizes
 # 16 14  12  10   8   6   4   2
 
-width, height = (16,16)
+z = re.search('^([0-9]+)x([0-9]+)', sys.argv[1])
+if z == None:
+    width, height = (16, 16)
+else:
+    height, width = map(int, z.groups())
+print(f'width = {width}')
+print(f'height = {height}')
+
 pieces = dict()
 piecenum=1
 
+max_edge = 0
 for s in ''.join(piece_data.split('\n')).split('/'):
     for rot in range(4):
+        if ord(s[rot])-ord('a') > max_edge:
+            max_edge = ord(s[rot])-ord('a')
         pieces[(piecenum,rot)] = s[-rot:] + s[:-rot]
+        # print(f'pieces[{(piecenum,rot)}] = {pieces[(piecenum,rot)]}')
     piecenum += 1
+
+print(f'max_edge = {max_edge}')
+# sys.exit(0)
 
 keytypes = tuple(tuple(c == '1' for c in f'{x:04b}') for x in range(16))
 fit = dict()
@@ -58,11 +62,10 @@ for key1, val in pieces.items():
             fit[key2] = fit.get(key2, []) + [key1]
 # for k in fit:
 #     print(k, fit[k])
-# sys.exit(0)
 
 hints = ((135, (139,2)), (34, (208,3)), (45, (255,3)), 
          (210, (181, 3)), (221, (249, 0)))
-num_hints = int(sys.argv[2])
+num_hints = int(sys.argv[3])
 hints_dict = { k: v for k, v in hints[:num_hints] }
 # hints = { 135: (139,2) }
 #hints = {}
@@ -133,12 +136,12 @@ def build_spiral():
     for ord1, pos1 in enumerate(ord2pos):
         pos2ord[pos1] = ord1
 
-if sys.argv[1] == 'row':
+if sys.argv[2] == 'row':
     build_rowscan()
-elif sys.argv[1] == 'spiral':
+elif sys.argv[2] == 'spiral':
     build_spiral()
 else:
-    print('unknown piece order scheme: {sys.argv[1]}')
+    print('unknown piece order scheme: {sys.argv[2]}')
     sys.exit(0)
 
 with open('genheader.h', 'w') as fp:
@@ -148,8 +151,8 @@ with open('genheader.h', 'w') as fp:
     fp.write(f'int ord2pos[] = {{ {pdata} }};\n')
     pdata = ','.join(map(str, pos2ord))
     fp.write(f'int pos2ord[] = {{ {pdata} }};\n')
-    fp.write(f'#define WIDTH 16\n')
-    fp.write(f'#define HEIGHT 16\n')
+    fp.write(f'#define WIDTH {width}\n')
+    fp.write(f'#define HEIGHT {height}\n')
     fp.write(f'#define NUM_HINTS {num_hints}\n')
 
 with open('gensrc.c', 'w') as fp:
@@ -177,10 +180,10 @@ with open('gensrc.c', 'w') as fp:
             else:
                 ord2 = pos2ord[r2*width+c2]
                 if ord2 >= ord1:
-                    new_k = '23'
+                    new_k = f'{max_edge+1}'
                 else:
                     new_k = f'Q[{ord2}].pieces->piece->edges[{(dir+2)%4}]'
-            k = f'({k})*24+{new_k}' if len(k) else new_k
+            k = f'({k})*{max_edge+2}+{new_k}' if len(k) else new_k
         src2 += f'      Q[{ord1}].pieces = fit_table[{k}];\n'
         src2 += f'      Q[{ord1}].active = TRUE;\n'
         src2 += f'    }}\n'
@@ -214,7 +217,7 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'      best = {ord1+1};\n'
         src2 += f'      best_node = nodes;\n'
         # if ord1+1 >= 94:
-        if ord1+1 >= 127:
+        if sys.argv[1] != 'eternity2' or ord1+1 >= 127:
             src2 += f'      print_puzz({ord1+1});\n'
         src2 += f'    }}\n'
 

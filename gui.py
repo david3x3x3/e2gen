@@ -33,9 +33,12 @@ tty.setcbreak(sys.stdin.fileno())
 # finally:
 #     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
-procs = int(sys.argv[1])
+procs = int(sys.argv[3])
 
 ON_POSIX = 'posix' in sys.builtin_module_names
+
+width=int(sys.argv[2])
+height=int(sys.argv[2])
 
 def enqueue_output(out, queue, num):
     for line in iter(out.readline, b''):
@@ -49,15 +52,15 @@ def print_best():
         board = board[1].strip().split(' ')
     else:
         board = []
-    if len(board) < 256:
-        return
+    # if len(board) < 256:
+    #     return
     log = list(board)
     rs = procs+3
-    for r in range(16):
+    for r in range(height):
         goto_rc(rs, 1, False)
         rs += 1
-        for c in range(16):
-            i = r*16+c
+        for c in range(width):
+            i = r*width+c
             if i < len(board):
                 p, rot = map(int,board[i].split('/'))
                 #print('%02x ' % (p-1), end='')
@@ -65,7 +68,7 @@ def print_best():
             else:
                 print('..... ', end='')
     print('', end='', flush=True)
-    print_url()
+    # print_url()
 
 def line_to_url(line):
     board = line.split(':')
@@ -130,7 +133,8 @@ all_processes = [None]*procs
 
 def start_proc(n):
     global all_processes
-    cmd = ['./spiral', str(n), str(random.getrandbits(32))]
+    # cmd = ['./spiral', str(n), str(random.getrandbits(32))]
+    cmd = [sys.argv[1], str(n), str(random.getrandbits(32))]
     p = Popen(cmd, stdout=PIPE, bufsize=1, close_fds=ON_POSIX)
     all_processes[n] = p
     t = Thread(target=enqueue_output, args=(p.stdout, q, n))
@@ -141,7 +145,7 @@ for n in range(procs):
     start_proc(n)
 
 fp=open('eternity2.txt','r')
-width, height = list(map(int,fp.readline().strip('\n').split(' ')))
+widthz, heightz = list(map(int,fp.readline().strip('\n').split(' ')))
 pieces = dict()
 piecenum=0
 pypieces = []
