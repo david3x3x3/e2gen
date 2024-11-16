@@ -194,6 +194,7 @@ def print_status(num, hilight):
     nodes_total = 0
     num_rates = 0
     rates_total = 0
+    best = 0
     for i, status in enumerate(statuses):
         statusf = []
         fields = status.split(' ')
@@ -207,6 +208,9 @@ def print_status(num, hilight):
                 num_rates += 1
                 rates_total += int(field_parts[1])
                 field_parts[1] = nodefmt(int(field_parts[1]))
+            elif field_parts[0] == 'best':
+                if int(field_parts[1]) > best:
+                    best = int(field_parts[1])
             field = '='.join(field_parts)
             statusf += [field]
         if i == num:
@@ -215,7 +219,9 @@ def print_status(num, hilight):
             
     avgrate = nodefmt(rates_total//procs)
     goto_rc(procs+1, 1, True)
-    print('   nodes=%s rate=%s avgrate=%s%c[K' % (nodefmt(nodes_total), nodefmt(rates_total), avgrate, 27), end='', flush=True)
+    print('   best=%d nodes=%s rate=%s avgrate=%s%c[K' %
+          (best, nodefmt(nodes_total), nodefmt(rates_total), avgrate, 27),
+          end='', flush=True)
 
 print(f'{27:c}[2J',end='')
 while True:
