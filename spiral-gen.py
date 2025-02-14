@@ -95,6 +95,29 @@ def build_rowscan():
     for ord1, pos1 in enumerate(ord2pos):
         pos2ord[pos1] = ord1
     
+def build_strip():
+    global pos2ord, ord2pos, num_hints
+    r1 = 0
+    c1 = 0
+    i = 0
+    dir = 0
+    pos2ord = [-1]*(width*height)
+    ord2pos_ = [-1]*(width*height)
+    ord2pos = []
+    # build rowscan without hints
+    ord2pos_ = [x for x in range(width*height)[32:]] + [x for x in range(width*height)[:32]]
+    
+    # redo the order with just the hint pieces
+    for pos1 in hints_dict:
+        ord2pos += [pos1]
+    # copy locations from the original order to the new order if they aren't hints
+    for pos1 in ord2pos_:
+        if pos1 not in hints_dict:
+            ord2pos += [pos1]
+    # build ord2pos from pos2ord
+    for ord1, pos1 in enumerate(ord2pos):
+        pos2ord[pos1] = ord1
+    
 def build_spiral():
     global pos2ord, ord2pos, num_hints
     r1 = 0
@@ -138,6 +161,8 @@ def build_spiral():
 
 if sys.argv[2] == 'row':
     build_rowscan()
+elif sys.argv[2] == 'strip':
+    build_strip()
 elif sys.argv[2] == 'spiral':
     build_spiral()
 else:
