@@ -33,8 +33,10 @@ piecenum=1
 max_edge = 0
 for s in ''.join(piece_data.split('\n')).split('/'):
     for rot in range(4):
-        if ord(s[rot])-ord('a') > max_edge:
-            max_edge = ord(s[rot])-ord('a')
+        # print(f's[{rot}] = {s[rot]}')
+        sn = "abcdefghijklmnopqrstuvwxyzABCDE".index(s[rot]);
+        if sn > max_edge:
+            max_edge = sn;
         pieces[(piecenum,rot)] = s[-rot:] + s[:-rot]
         # print(f'pieces[{(piecenum,rot)}] = {pieces[(piecenum,rot)]}')
     piecenum += 1

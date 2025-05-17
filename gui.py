@@ -1,20 +1,20 @@
 # based on https://stackoverflow.com/questions/375427/a-non-blocking-read-on-a-subprocess-pipe-in-python/4896288
 
-import sys, random, re, webbrowser
+import sys, random, re, webbrowser, msvcrt
 from subprocess import PIPE, Popen
 from threading  import Thread
 from queue import Queue, Empty
 from time import sleep
 
-import select
-import tty
-import termios
+# import select
+# import tty
+# import termios
 
 def isData():
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
-old_settings = termios.tcgetattr(sys.stdin)
-tty.setcbreak(sys.stdin.fileno())
+# old_settings = termios.tcgetattr(sys.stdin)
+# tty.setcbreak(sys.stdin.fileno())
 
 # old_settings = termios.tcgetattr(sys.stdin)
 # try:
@@ -68,7 +68,7 @@ def print_best():
             else:
                 print('..... ', end='')
     print('', end='', flush=True)
-    # print_url()
+    print_url()
 
 def line_to_url(line):
     board = line.split(':')
@@ -80,8 +80,8 @@ def line_to_url(line):
     for i in range(256):
         if i < len(board):
             p, rot = map(int,board[i].split('/'))
-            for rot2 in range(4):
-                myurl += 'animovhuqprslwtjgkbdecf'[pypieces[p][(6-rot+rot2)%4]]
+            # for rot2 in range(4):
+            #     myurl += 'animovhuqprslwtjgkbdecfxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[pypieces[p][(6-rot+rot2)%4]]
         else:
             myurl += '0000'
     return myurl
@@ -90,6 +90,8 @@ def print_url():
     global url, urlf
     
     mystr = bests[curs]
+    if mystr == '':
+        mystr = '0: ' + ' '.join(['0/0']*256)
     url = line_to_url(mystr)
     pieces = list(map(int,[s.split('/')[0] for s in mystr.split(':')[1].strip().split(' ')]))
     corners = set(list(range(1,5)))
@@ -99,8 +101,9 @@ def print_url():
         corners.discard(n)
         edges.discard(n)
         middle.discard(n)
-    total = len(pieces)
-    while total < 256:
+    for total in range(256):
+        if pieces[0] != 0:
+            continue
         row = (total)//16
         col = (total)%16
         if col == 0:
@@ -159,7 +162,8 @@ for line in fp.read().splitlines():
     for rot in range(4):
         pieces[(piecenum,rot)] = t1[-rot:] + t1[:-rot]
     piecenum += 1
-#print('pypieces = ' + str(pypieces))
+print('pypieces = ' + str(pypieces))
+print('len pypieces = ' + str(len(pypieces)))
 #print('edgecount = ' + str(edgecount))
 fp.close()
 #exit(0)
@@ -228,18 +232,18 @@ while True:
     # read line without blocking
     try:  num, line = q.get_nowait() # or q.get(timeout=.1)
     except Empty:
-        #if msvcrt.kbhit():
-        if isData():
-            #while msvcrt.kbhit():
-            while isData():
-                #c = msvcrt.getch().decode('ascii')
-                c = sys.stdin.read(1)
+        #if isData():
+        if msvcrt.kbhit():
+            #while isData():
+            while msvcrt.kbhit():
+                c = msvcrt.getch().decode('ascii')
+                #c = sys.stdin.read(1)
                 if c == 'q': # quit
                     for p in all_processes:
                         if p:
                             p.kill()
                     goto_rc(16+procs+3,1, False)
-                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                    # termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
                     exit(0)
                 elif c == 'j': # next row
                     if curs + 1 >= procs:

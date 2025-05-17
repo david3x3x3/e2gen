@@ -99,6 +99,12 @@ bignum_fmt(char *s, long long val) {
 }
 
 int
+edge_c2i(char c) {
+  char *alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL";
+  return (int)(strchr(alpha, c) - alpha);
+}
+
+int
 restart() {
   piecelist_t *pl;
   piece_t *p;
@@ -179,6 +185,7 @@ restart() {
 
   // figure out which entries in fit_table are populated to make it
   // easier to go back and scramble them.
+  printf("fit_size1 = %d\n", fit_size1);
   printf("fit_size2 = %d\n", fit_size2);
   i = m=0;
   for (k=0; k<fit_size2; k++) {
@@ -255,8 +262,10 @@ print_status(int after_best) {
   if (!after_best) {
     if (width >= 16 && (
 	best<127 ||
-	(nodes >= 100000000 && best<192) ||
-	(nodes >= 20000000000 && best<208))) {
+	//	(nodes >= 100000000 && best<192) ||
+	// (nodes >= 20000000000 && best<208))) {
+	(nodes >= 100000000 && best<160) ||
+	(nodes >= 20000000000 && best<176))) {
       // these thresholds were designed for spiral with hints, but
       // they work ok for other arrangements
       return restart();
@@ -307,8 +316,8 @@ print_puzz(int ord) {
 int
 origmain(char *argv1, char *argv2) {
   int row, col, i, j, k, piecenum, rot, k1, k2, k3, k4, ord1, ord2,
-    pos1, pos2;
-  char temp_edges[9], c, max_edge = 'a', tempstr[5], msg[128];
+    pos1, pos2, max_edge = 0;
+  char temp_edges[9], c, tempstr[5], msg[128];
   piecelist_t *pl;
   piece_t *p;
   unsigned int rnd=0;
@@ -339,8 +348,8 @@ origmain(char *argv1, char *argv2) {
     for(j=0; j<2; j++) {
       for(i=0; i<4; i++) {
 	c = piece_data[piecenum*5+i];
-	if (c > max_edge) {
-	  max_edge = c;
+	if (edge_c2i(c) > max_edge) {
+	  max_edge = edge_c2i(c);
 	}
 	temp_edges[k++] = c;
       }
@@ -353,7 +362,7 @@ origmain(char *argv1, char *argv2) {
       pieces[piecenum][i].piecenum = piecenum;
       pieces[piecenum][i].rot = i;
       for (j=0; j<4; j++) {
-	pieces[piecenum][i].edges[j] = tempstr[j] - 'a';
+	pieces[piecenum][i].edges[j] = edge_c2i(tempstr[j]);
       }
       strcpy(pieces[piecenum][i].edgestr, tempstr);
       //printf("%s ", pieces[piecenum][i].edgestr);
@@ -361,8 +370,8 @@ origmain(char *argv1, char *argv2) {
     //printf("\n");
   }
   //printf("piece_data = %s\n", piece_data);
-  printf("max_edge = %d\n", max_edge-'a');
-  fit_size1 = max_edge-'a'+2;
+  printf("max_edge = %d\n", max_edge);
+  fit_size1 = max_edge+2;
   printf("fit_size1 = %d\n", fit_size1);
   fit_size2 = 1;
   for (i=0; i<4; i++) {
