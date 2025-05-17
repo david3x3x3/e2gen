@@ -33,12 +33,20 @@ def isData():
 # finally:
 #     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
-procs = int(sys.argv[3])
+procs = int(sys.argv[1])
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-width=int(sys.argv[2])
-height=int(sys.argv[2])
+exe=sys.argv[2].split('/')[-1].split('.')[0]
+print(f'exe = {exe}')
+pieceset = exe.split('-')[0]
+print(f'pieceset = {pieceset}')
+if pieceset == 'eternity2':
+    width = 16
+    height = 16
+else:
+    width = int(pieceset.split('x')[1])
+    height = int(pieceset.split('x')[0])
 
 def enqueue_output(out, queue, num):
     for line in iter(out.readline, b''):
@@ -76,15 +84,22 @@ def line_to_url(line):
         board = board[1].strip().split(' ')
     else:
         board = []
-    myurl = 'https://e2.bucas.name/#puzzle=EternityII&board_w=16&board_h=16&board_edges='
+    name = 'EternityII' if pieceset == 'eternity2' else pieceset
+    board_edges = ''
+    board_pieces = ''
     for i in range(256):
         if i < len(board):
             p, rot = map(int,board[i].split('/'))
-            # for rot2 in range(4):
-            #     myurl += 'animovhuqprslwtjgkbdecfxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[pypieces[p][(6-rot+rot2)%4]]
+            for rot2 in range(4):
+                board_edges += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[pypieces[p][(4-rot+rot2)%4]]
+            board_pieces += f'{p:03d}'
         else:
-            myurl += '0000'
-    return myurl
+            board_edges += '0000'
+            board_pieces += '000'
+    url = f'https://e2.bucas.name/#puzzle={name}&board_w={width}&board_h={height}&board_edges={board_edges}'
+    if pieceset != 'eternity2':
+        url += f'&board_pieces={board_pieces}'
+    return url
     
 def print_url():
     global url, urlf
@@ -137,7 +152,7 @@ all_processes = [None]*procs
 def start_proc(n):
     global all_processes
     # cmd = ['./spiral', str(n), str(random.getrandbits(32))]
-    cmd = [sys.argv[1], str(n), str(random.getrandbits(32))]
+    cmd = [sys.argv[2], str(n), str(random.getrandbits(32))]
     p = Popen(cmd, stdout=PIPE, bufsize=1, close_fds=ON_POSIX)
     all_processes[n] = p
     t = Thread(target=enqueue_output, args=(p.stdout, q, n))
@@ -147,26 +162,19 @@ def start_proc(n):
 for n in range(procs):
     start_proc(n)
 
-fp=open('eternity2.txt','r')
-widthz, heightz = list(map(int,fp.readline().strip('\n').split(' ')))
 pieces = dict()
 piecenum=0
 pypieces = []
 edgecount=0
 pypieces += [(0, 0, 0, 0)]
-for line in fp.read().splitlines():
-    t1 = tuple(map(int,line.split(' ')))
-    pypieces += [t1]
-    if max(t1) >= edgecount:
-        edgecount = max(t1) + 1
-    for rot in range(4):
-        pieces[(piecenum,rot)] = t1[-rot:] + t1[:-rot]
-    piecenum += 1
-print('pypieces = ' + str(pypieces))
-print('len pypieces = ' + str(len(pypieces)))
-#print('edgecount = ' + str(edgecount))
+
+fp=open('puzzles.txt','r')
+lines=fp.read().splitlines()
+for p in lines[lines.index(pieceset)+1].split('/'):
+    pypieces += [tuple(['abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'.index(c) for c in p])]
 fp.close()
-#exit(0)
+# print(f'pypieces = {pypieces}')
+# exit(0)
 
 curs=0
 

@@ -202,7 +202,7 @@ with open('gensrc.c', 'w') as fp:
             # src2 += f'    k *= fit_size1;\n'
             r2 = r1 + dirs[dir][0]
             c2 = c1 + dirs[dir][1]
-            if r2 < 0 or r2 >= width or c2 < 0 or c2 >= height:
+            if r2 < 0 or r2 >= height or c2 < 0 or c2 >= width:
                 new_k = '0'
             else:
                 ord2 = pos2ord[r2*width+c2]

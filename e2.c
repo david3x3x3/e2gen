@@ -260,7 +260,7 @@ print_status(int after_best) {
     status_interval = 100000000;
   }
   if (!after_best) {
-    if (width >= 16 && (
+    if (width == 16 && height == 16 && (
 	best<127 ||
 	//	(nodes >= 100000000 && best<192) ||
 	// (nodes >= 20000000000 && best<208))) {
