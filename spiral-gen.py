@@ -171,6 +171,8 @@ else:
     print('unknown piece order scheme: {sys.argv[2]}')
     sys.exit(0)
 
+rowsize = int(sys.argv[4])
+
 with open('genheader.h', 'w') as fp:
     pdata = "".join(piece_data.split("\n"))
     fp.write(f'char *piece_data = "aaaa/{pdata}";\n')
@@ -224,19 +226,26 @@ with open('gensrc.c', 'w') as fp:
         if ord1 > 0:
             src2 += f'      goto case{ord1 - 1};\n'
         else:
+            src2 += f'      print_status(0,1);\n'
             src2 += f'      return 0;\n'
         src2 += f'    }}\n'
         src2 += f'    p = Q[{ord1}].pieces->piece;\n'
         if ord1 < num_hints:
             src2 += f'    if (placed[p->piecenum] || p->piecenum != {hints_dict[pos1][0]} || p->rot != {hints_dict[pos1][1]}) {{\n'
+        elif False and sys.argv[1] == '10x10' and ord1 == width-2:
+            # disable for now.
+            # heuristic for first row of 10x10
+            src2 += f'    if (placed[p->piecenum] || !edge_check({ord1+1})) {{\n'
         else:
             src2 += f'    if (placed[p->piecenum]) {{\n'
         # src2 += f'      placed[p->piecenum]++;\n'
         src2 += f'      goto case{ord1}_dup;\n'
         src2 += f'    }}\n'
+        if ord1+1 == rowsize:
+            src2 += f'    if (rownum-- != 0) goto case{ord1}_dup;\n'
         src2 += f'    nodes += 1;\n'
         src2 += f'    if (nodes % status_interval == 0) {{\n'
-        src2 += f'      if (print_status(0))\n'
+        src2 += f'      if (print_status(0,0))\n'
         src2 += f'        goto case0;\n'
         src2 += f'    }}\n'
         src2 += f'    placed[p->piecenum] = 1;\n'

@@ -106,7 +106,7 @@ edge_c2i(char c) {
 
 int
 restart() {
-  piecelist_t *pl;
+  piecelist_t *pl, *pl2, *pl3;
   piece_t *p;
   int i, j, k, m, rot, ord1, pos1, piecenum;
   int porder[WIDTH*HEIGHT];
@@ -139,7 +139,7 @@ restart() {
     // we built the fit_table once, so just shuffle instead of rebuilding
     for(i=0; fit_entries[i] >= 0; i++) {
       pl = fit_table[fit_entries[i]];
-      pl->next = shuffle_piecelist(pl->next);
+      // pl->next = shuffle_piecelist(pl->next);
     }
     return 1;
   }
@@ -147,7 +147,7 @@ restart() {
   for (ord1=0; ord1<width*height; ord1++) {
     porder[ord1] = ord1+1;
   }
-  shuffle(porder, width*height);
+  // shuffle(porder, width*height);
   for(pos1=0; pos1<width*height; pos1++) {
     piecenum = porder[pos1];
     for (rot=0; rot<4; rot++) {
@@ -230,11 +230,25 @@ restart() {
     pl->next = fit_table[k];
     fit_table[k] = pl;
   }
+
+  // reverse the fit entries so that we search in a normal order
+  for(i=0; fit_entries[i] >= 0; i++) {
+    pl3 = NULL;
+    pl = fit_table[fit_entries[i]];
+    while(pl->next) {
+      pl2 = pl->next;
+      pl->next = pl->next->next;
+      pl2->next = pl3;
+      pl3 = pl2;
+    }
+    pl->next = pl3;
+  }
+
   return 1;
 }
 
 int
-print_status(int after_best) {
+print_status(int after_best, int last) {
   char msg[1024];
   char msg2[1024];
   long long rate;
@@ -244,10 +258,10 @@ print_status(int after_best) {
   rate = nodes/(time(NULL)-start_time);
   bignum_fmt(rate_disp, rate);
   bignum_fmt(bestn_disp, best_node);
-  sprintf(msg, "best=%d (%s) nodes=%lld time=%lld rate=%lld restarts=%d", best,
+  sprintf(msg, "best=%d (%s) nodes=%lld time=%lld rate=%lld restarts=%d last=%d", best,
 	  bestn_disp, nodes, (long long)time(NULL)-start_time, rate,
-	  restarts);
-  if (after_best || nodes >= 1000000) {
+	  restarts, last);
+  if (last || after_best || nodes >= 1000000) {
 #ifdef EMSCRIPTEN
     sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
     emscripten_run_script(msg2);
@@ -277,6 +291,30 @@ print_status(int after_best) {
 #ifdef __EMSCRIPTEN__
 char best_buf[8192];
 #endif
+
+// heuristic for first row of 10x10
+
+// counts the number of duplicated edge types between pieces in first row to make sure there are more than average
+
+int
+edge_check(int ord) {
+  int pos1, ord1, edges[4], i, counts[7];
+  piece_t *p;
+  for(i=0; i<4; i++) {
+    edges[i] = 0;
+  }
+  for(i=0; i<7; i++) {
+    counts[i] = 0;
+  }
+  for(pos1=0; pos1<ord; pos1++) {
+    p = Q[pos2ord[pos1]].pieces->piece;
+    edges[p->edges[1]-1]++;
+  }
+  for(i=0; i<4; i++) {
+    counts[edges[i]]++;
+  }
+  return counts[6] || (counts[5] && counts[3]);
+}
 
 void
 print_puzz(int ord) {
@@ -310,19 +348,20 @@ print_puzz(int ord) {
   }
   printf("\n");
 #endif
-  print_status(1);
+  print_status(1, 0);
 }
 
 int
 origmain(char *argv1, char *argv2) {
   int row, col, i, j, k, piecenum, rot, k1, k2, k3, k4, ord1, ord2,
-    pos1, pos2, max_edge = 0;
+    pos1, pos2, max_edge = 0, rownum;
   char temp_edges[9], c, tempstr[5], msg[128];
   piecelist_t *pl;
   piece_t *p;
   unsigned int rnd=0;
 
   core = atoi(argv1);
+  rownum = atoi(argv2);
   sprintf(msg,"postMessage('core = %d');", core);
 #ifdef __EMSCRIPTEN__
   emscripten_run_script(msg);
@@ -382,6 +421,7 @@ origmain(char *argv1, char *argv2) {
   Q = calloc(width*height, sizeof(square_t));
   restart();
 #include "gensrc.c"
+  print_status(1, 0);
 }
 
 #ifdef __EMSCRIPTEN__

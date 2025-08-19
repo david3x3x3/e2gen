@@ -33,6 +33,8 @@ def isData():
 # finally:
 #     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
+seeds = {}
+
 procs = int(sys.argv[1])
 
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -40,6 +42,9 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 exe=sys.argv[2].split('/')[-1].split('.')[0]
 print(f'exe = {exe}')
 pieceset = exe.split('-')[0]
+order = exe.split('-')[1]
+rowsize = int(exe.split('-')[2])
+numrows = int(exe.split('-')[3])
 print(f'pieceset = {pieceset}')
 if pieceset == 'eternity2':
     width = 16
@@ -51,7 +56,14 @@ else:
 def enqueue_output(out, queue, num):
     for line in iter(out.readline, b''):
         queue.put((num, line.decode('utf-8').strip()))
+    queue.put((num, 'status all done'))
     out.close()
+    with open('exits.txt', 'a') as fp:
+        cmd = [sys.argv[2], str(num), seeds[num]]
+        fp.write(f'command {cmd} exited\n')
+    start_proc(num)
+
+do_fill = False
 
 def print_best():
     global log
@@ -60,6 +72,11 @@ def print_best():
         board = board[1].strip().split(' ')
     else:
         board = []
+    while len(board) < width*height:
+        board += ['0/0']
+    if do_fill:
+        board = auto_fill(board).split(':')[1].strip().split(' ')
+    # print(f'board = {board}')
     # if len(board) < 256:
     #     return
     log = list(board)
@@ -106,45 +123,57 @@ def print_url():
     
     mystr = bests[curs]
     if mystr == '':
-        mystr = '0: ' + ' '.join(['0/0']*256)
+        mystr = '0: ' + ' '.join(['0/0']*(width*height))
     url = line_to_url(mystr)
-    pieces = list(map(int,[s.split('/')[0] for s in mystr.split(':')[1].strip().split(' ')]))
+    mystr0 = mystr.split(':')[1].strip().split(' ')
+    newstr = auto_fill(mystr0)
+    urlf = line_to_url(newstr)
+
+def auto_fill(mystr0):
+    pieces = list(map(int,[s.split('/')[0] for s in mystr0]))
+    num_ce = (width+height-2)*2
     corners = set(list(range(1,5)))
-    edges = set(list(range(5,61)))
-    middle = set(list(range(61,257)))
+    edges = set(list(range(5,num_ce+1)))
+    middle = set(list(range(num_ce+1,(width*height)+1)))
     for n in pieces:
         corners.discard(n)
         edges.discard(n)
         middle.discard(n)
-    for total in range(256):
-        if pieces[0] != 0:
+    # print(f'num_ce = {num_ce}')
+    # print(f'corners = {corners}')
+    # print(f'edges = {edges}')
+    # print(f'middle = {middle}')
+    newstr = f'{width*height}:'
+    for total in range(width*height):
+        if mystr0[total] != '0/0':
+            newstr = newstr + ' ' + mystr0[total]
             continue
-        row = (total)//16
-        col = (total)%16
+        row = (total)//width
+        col = (total)%width
         if col == 0:
             if row == 0:
-                mystr += f' {corners.pop()}/1'
-            elif row == 15:
-                mystr += f' {corners.pop()}/0'
+                newstr += f' {corners.pop()}/1'
+            elif row+1 == height:
+                newstr += f' {corners.pop()}/0'
             else:
-                mystr += f' {edges.pop()}/1'
-        elif col == 15:
+                newstr += f' {edges.pop()}/1'
+        elif col+1 == width:
             if row == 0:
-                mystr += f' {corners.pop()}/2'
-            elif row == 15:
-                mystr += f' {corners.pop()}/3'
+                newstr += f' {corners.pop()}/2'
+            elif row+1 == height:
+                newstr += f' {corners.pop()}/3'
             else:
-                mystr += f' {edges.pop()}/3'
+                newstr += f' {edges.pop()}/3'
         else:
             if row == 0:
-                mystr += f' {edges.pop()}/2'
-            elif row == 15:
-                mystr += f' {edges.pop()}/0'
+                newstr += f' {edges.pop()}/2'
+            elif row+1 == height:
+                newstr += f' {edges.pop()}/0'
             else:
-                mystr += f' {middle.pop()}/0'
+                newstr += f' {middle.pop()}/0'
         total += 1
-    urlf = line_to_url(mystr)
-
+    return newstr
+    
 q = Queue()
 
 all_processes = [None]*procs
@@ -152,7 +181,12 @@ all_processes = [None]*procs
 def start_proc(n):
     global all_processes
     # cmd = ['./spiral', str(n), str(random.getrandbits(32))]
-    cmd = [sys.argv[2], str(n), str(random.getrandbits(32))]
+    # cmd = [sys.argv[2], str(n), str(random.randint(0,250000))]
+    # seed = str(random.randint(0,259477)) # 9x9
+    seed = str(random.randint(0,numrows-1)) # 10x10
+    # seed = str(random.randint(0,587808)) # eternity2
+    seeds[n] = seed
+    cmd = [sys.argv[2], str(n), seed]
     p = Popen(cmd, stdout=PIPE, bufsize=1, close_fds=ON_POSIX)
     all_processes[n] = p
     t = Thread(target=enqueue_output, args=(p.stdout, q, n))
@@ -270,9 +304,11 @@ while True:
                     print_best()
                     goto_rc(curs+1, 1, False)
                 elif c == 'v': # view on bucas.name
-                    webbrowser.open(url)
+                    webbrowser.open(urlf if do_fill else url)
                 elif c == 'f': # fill remainder with random valid pieces and view
-                    webbrowser.open(urlf)
+                    # webbrowser.open(urlf)
+                    do_fill = not do_fill
+                    print_best()
                 elif c == 'r': # restart
                     all_processes[curs].kill()
                     start_proc(curs)
@@ -294,6 +330,11 @@ while True:
         #print('no output yet')
     else: # got line
         if re.match('^status', line):
+            for word in line.split(' '):
+                field_parts = word.split('=')
+                if field_parts[0] == 'last' and field_parts[1] == '1':
+                    with open(f'results-{pieceset}.txt', 'a') as fp:
+                        fp.write(f'row={seeds[num]} {line}\n')
             statuses[num] = line
             print_status(num, True)
             goto_rc(curs+1, 1, False)
