@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">E2Gen</string>
+    <string name="title_puzzle">Puzzle Board</string>
+    <string name="menu_new_puzzle">New Puzzle</string>
+    <string name="menu_solve">Solve</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_generate">Generate Puzzle</string>
+    <string name="btn_view_board">View Board</string>
+    <string name="label_board_size">Board Size: 16×16</string>
+    <string name="label_pieces">Pieces: 256</string>
+    <string name="label_status_idle">Status: Idle</string>
+    <string name="label_status_running">Status: Solving…</string>
+    <string name="label_status_done">Status: Done</string>
+    <string name="hint_size">Board size (e.g. 16)</string>
+    <string name="content_desc_piece">Puzzle piece</string>
+</resources>
