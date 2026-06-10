@@ -16,6 +16,7 @@ int height=WIDTH, width=HEIGHT, best=0, core=0, status_interval, restarts=0;
 int fit_size1, fit_size2, placed[WIDTH*HEIGHT+1], bestbest=0, *fit_entries=NULL;
 long long nodes=0, best_node=0;
 time_t start_time;
+int solutions = 0;
 
 typedef struct piece_s {
   int piecenum, rot;
@@ -349,6 +350,9 @@ print_puzz(int ord) {
   printf("\n");
 #endif
   print_status(1, 0);
+  if (ord == width*height) {
+    solutions++;
+  }
 }
 
 int
@@ -421,7 +425,6 @@ origmain(char *argv1, char *argv2) {
   Q = calloc(width*height, sizeof(square_t));
   restart();
 #include "gensrc.c"
-  print_status(1, 0);
 }
 
 #ifdef __EMSCRIPTEN__
@@ -442,6 +445,9 @@ main() {
 int
 main(int argc, char *argv[]) {
   origmain(argv[1],argv[2]);
+  print_status(1, 0);
+  printf("nodes = %lld\n", nodes);
+  printf("solutions = %d\n", solutions);
   exit(0);
 }
 #endif

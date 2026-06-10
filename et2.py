@@ -52,7 +52,8 @@ while Q:
         # self.postMessage(to_js({'pieces': p2, 'url': url}, dict_converter=Object.fromEntries))
         # print({'pieces': p2, 'url': url})
     if len(solution) == width+int(sys.argv[2]):
-        if solcount % 100000 == 0:
+        #if solcount % 100000 == 0:
+        if True:
             disp = ' '.join([f'{p[0]}/{p[1]}' for p in solution[width:]])
             print(f'found #{solcount} - {disp}')
         solcount += 1
