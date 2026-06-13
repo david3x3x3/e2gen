@@ -578,7 +578,7 @@ report_result(void) {
   snprintf(dttm, sizeof(dttm), "%s.%06ld+00:00", tsbuf, ts.tv_nsec / 1000);
 
   char puzzle_id[128];
-  snprintf(puzzle_id, sizeof(puzzle_id), "%s_1", puzzle_name);
+  snprintf(puzzle_id, sizeof(puzzle_id), "%02dx%02d_1", width, height);
 
   char json[1024];
   snprintf(json, sizeof(json),
