@@ -21,6 +21,7 @@ time_t start_time;
 int solutions = 0;
 int rownum = -1;
 int initial_rownum = -1;
+char puzzle_name[64] = "";
 
 /* save/restore state */
 int current_ord = 0;
@@ -554,7 +555,7 @@ origmain(char *argv1, char *argv2) {
   unsigned int rnd=0;
 
   core = atoi(argv1);
-  snprintf(save_filename, sizeof(save_filename), "e2state-%s.sav", argv1);
+  snprintf(save_filename, sizeof(save_filename), "e2state-%s-%s.sav", puzzle_name, argv1);
   signal(SIGINT,  signal_handler);
   signal(SIGTERM, signal_handler);
 
@@ -649,6 +650,14 @@ main(int argc, char *argv[]) {
     return 1;
   }
 
+  /* Extract puzzle name from the executable filename (first dash-delimited component). */
+  char *base = strrchr(argv[0], '/');
+  base = base ? base + 1 : argv[0];
+  strncpy(puzzle_name, base, sizeof(puzzle_name) - 1);
+  puzzle_name[sizeof(puzzle_name) - 1] = '\0';
+  char *dash = strchr(puzzle_name, '-');
+  if (dash) *dash = '\0';
+
   if (argc >= 3) {
     rownum = atoi(argv[2]);
     printf("rownum=%d (from command line)\n", rownum);
@@ -657,7 +666,7 @@ main(int argc, char *argv[]) {
   } else {
     /* Determine rownum: try save file first, then web service. */
     char savefile[256];
-    snprintf(savefile, sizeof(savefile), "e2state-%s.sav", argv[1]);
+    snprintf(savefile, sizeof(savefile), "e2state-%s-%s.sav", puzzle_name, argv[1]);
     FILE *fp = fopen(savefile, "r");
     if (fp) {
       int ord_val, rn;
@@ -670,9 +679,11 @@ main(int argc, char *argv[]) {
       fclose(fp);
     }
     if (rownum < 0) {
-      rownum = fetch_rownum_from_web();
+      if (strcmp(puzzle_name, "10x10") == 0)
+        rownum = fetch_rownum_from_web();
+
       if (rownum < 0) {
-        fprintf(stderr, "error: could not determine rownum\n");
+        fprintf(stderr, "error: rownum required for puzzle '%s' (no save file, no web service)\n", puzzle_name);
         return 1;
       }
     }
