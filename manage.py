@@ -23,7 +23,7 @@ IMPROVED_TTL = 5.0       # seconds to highlight a cell after a new best
 SHUTDOWN_TIMEOUT = 10    # seconds to wait for graceful solver exit
 
 STATUS_RE = re.compile(
-    r"status best=(\d+) \((\S+)\) nodes=(\d+) time=\d+ rate=(\d+) restarts=(\d+)"
+    r"status best=(\d+) \((\S+)\) nodes=(\d+) time=(\d+) rate=(\d+) restarts=(\d+)"
 )
 
 # curses color pair IDs
@@ -68,7 +68,9 @@ class Worker:
     log_file_pos: int = 0
     last_log_lines: list = field(default_factory=list)
     alive: bool = False
-    improved_at: float = 0.0  # time.time() of last best improvement
+    improved_at: float = 0.0   # time.time() of last best improvement
+    solver_elapsed: int = 0    # elapsed seconds reported by solver in last status line
+    elapsed_at: float = 0.0    # time.time() when that status line was parsed
 
 
 class Manager:
@@ -166,8 +168,10 @@ class Manager:
                         self.global_best_core = w.core
                 w.best_node_disp = m.group(2)
                 w.nodes = int(m.group(3))
-                w.rate = int(m.group(4))
-                w.restarts = int(m.group(5))
+                w.solver_elapsed = int(m.group(4))
+                w.elapsed_at = time.time()
+                w.rate = int(m.group(5))
+                w.restarts = int(m.group(6))
         # rolling buffer — keep the last 500 lines per worker
         if len(w.last_log_lines) > 500:
             w.last_log_lines = w.last_log_lines[-500:]
@@ -268,7 +272,12 @@ class Manager:
 
             # Info panel — selected worker
             sel = self.workers[self.cursor]
-            runtime = fmt_duration(now - sel.start_time) if sel.start_time else "—"
+            if sel.elapsed_at:
+                runtime = fmt_duration(sel.solver_elapsed + (now - sel.elapsed_at))
+            elif sel.start_time:
+                runtime = fmt_duration(now - sel.start_time)
+            else:
+                runtime = "—"
             pid_s = str(sel.proc.pid) if sel.proc else "—"
 
             fields = [
