@@ -14,7 +14,7 @@ while [ $s -lt 21 ]; do
 done
 # for what in 10x10.spiral.0 10x10.row.0 18x18.spiral.0 18x18.row.0 20x20.spiral.0 20x20.row.0; do
 # for what in 10x10.row.0.10 eternity2.row.1.7; do
-for what in 9x9.row.0.5 9x9.row.0.9 8x8.row.0.2 8x8.row.0.3 6x6.row.0.1 6x6.row.0.2 6x6.row.0.3; do
+for what in 9x9.row.0.5 9x9.row.0.9 8x8.row.0.2 8x8.row.0.3 6x6.row.0.1 6x6.row.0.2 6x6.row.0.3 10x10.row.0.10; do
     echo $what
     puzzle=$(echo $what | cut -d. -f1)
     method=$(echo $what | cut -d. -f2)
