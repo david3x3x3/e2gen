@@ -271,8 +271,12 @@ with open('gensrc.c', 'w') as fp:
                 src2 += f'      print_puzz({ord1+1});\n'
             src2 += f'    }}\n'
         else:
+            src2 += f'    if ({ord1+1} > best) {{\n'
+            src2 += f'      best = {ord1+1};\n'
+            src2 += f'      best_node = nodes;\n'
+            src2 += f'    }}\n'
             if sys.argv[1] != 'eternity2' or ord1+1 >= 127:
                 src2 += f'    print_puzz({ord1+1});\n'
-                src2 += f'    goto case{ord1}_dup;\n'
+            src2 += f'    goto case{ord1}_dup;\n'
 
         fp.write(src2)
