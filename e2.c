@@ -545,6 +545,68 @@ fetch_rownum_from_web(void) {
   return rn;
 }
 
+static void
+report_result(void) {
+  char password[256];
+  if (!read_password(password, sizeof(password))) {
+    fprintf(stderr, "warning: skipping result report (no password)\n");
+    return;
+  }
+
+  char reporter[128] = "";
+  FILE *rfp = fopen("reporter.txt", "r");
+  if (rfp) {
+    if (!fgets(reporter, sizeof(reporter), rfp)) reporter[0] = '\0';
+    fclose(rfp);
+    reporter[strcspn(reporter, "\r\n")] = '\0';
+  } else {
+    char *u = getenv("USER");
+    strncpy(reporter, u ? u : "unknown", sizeof(reporter) - 1);
+  }
+
+  char hostname[256];
+  gethostname(hostname, sizeof(hostname));
+  char *dot = strchr(hostname, '.');
+  if (dot) *dot = '\0';
+
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  struct tm *tm = gmtime(&ts.tv_sec);
+  char tsbuf[32];
+  strftime(tsbuf, sizeof(tsbuf), "%Y-%m-%dT%H:%M:%S", tm);
+  char dttm[64];
+  snprintf(dttm, sizeof(dttm), "%s.%06ld+00:00", tsbuf, ts.tv_nsec / 1000);
+
+  char puzzle_id[128];
+  snprintf(puzzle_id, sizeof(puzzle_id), "%s_1", puzzle_name);
+
+  char json[1024];
+  snprintf(json, sizeof(json),
+    "{\"puzzle\":\"%s\",\"row_num\":%d,\"nodes\":%lld,\"best\":%d,"
+    "\"solutions\":%d,\"reporter\":\"%s\",\"hostname\":\"%s\","
+    "\"update_dttm\":\"%s\"}",
+    puzzle_id, initial_rownum, nodes, best, solutions,
+    reporter, hostname, dttm);
+
+  char cmd[2048];
+  snprintf(cmd, sizeof(cmd),
+    "wget -q -O - --auth-no-challenge --http-user=reporter '--http-password=%s'"
+    " --header='Content-Type: application/json'"
+    " --post-data='%s'"
+    " 'https://puzzlingaddiction.com/e2db/store_result'",
+    password, json);
+
+  FILE *fp = popen(cmd, "r");
+  char response[1024] = {0};
+  if (fp) {
+    size_t n = fread(response, 1, sizeof(response) - 1, fp);
+    response[n] = '\0';
+    pclose(fp);
+  }
+  printf("result reported: %s\n", response[0] ? response : "(no response)");
+  fflush(stdout);
+}
+
 int
 origmain(char *argv1, char *argv2) {
   int row, col, i, j, k, piecenum, rot, k1, k2, k3, k4, ord1, ord2,
@@ -693,6 +755,7 @@ main(int argc, char *argv[]) {
   print_status(1, 0);
   printf("nodes = %lld\n", nodes);
   printf("solutions = %d\n", solutions);
+  report_result();
   if (save_filename[0])
     remove(save_filename);
   exit(0);
