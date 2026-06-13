@@ -20,6 +20,7 @@ long long nodes=0, best_node=0;
 time_t start_time;
 int solutions = 0;
 int rownum = -1;
+int initial_rownum = -1;
 
 /* save/restore state */
 int current_ord = 0;
@@ -111,13 +112,14 @@ void save_state(char *filename, int ord) {
   FILE *fp = fopen(filename, "w");
   if (!fp) { perror("save_state fopen"); return; }
   fprintf(fp, "ord=%d\n", ord);
-  fprintf(fp, "rownum=%d\n", rownum);
+  fprintf(fp, "rownum=%d\n", initial_rownum);
   fprintf(fp, "nodes=%lld\n", nodes);
   fprintf(fp, "best=%d\n", best);
   fprintf(fp, "best_node=%lld\n", best_node);
   fprintf(fp, "restarts=%d\n", restarts);
   fprintf(fp, "bestbest=%d\n", bestbest);
   fprintf(fp, "solutions=%d\n", solutions);
+  fprintf(fp, "elapsed=%lld\n", (long long)(time(NULL) - start_time));
   for (i = 0; i < ord; i++) {
     fprintf(fp, "%d %d\n",
             Q[i].pieces->piece->piecenum,
@@ -130,17 +132,18 @@ void save_state(char *filename, int ord) {
 
 int load_state(char *filename) {
   int ord, pn, rot, b, r, bb, sol, rn;
-  long long n, bn;
+  long long n, bn, elapsed;
   FILE *fp = fopen(filename, "r");
   if (!fp) return 0;
-  if (fscanf(fp, "ord=%d\n",         &ord) != 1) goto bad;
-  if (fscanf(fp, "rownum=%d\n",      &rn)  != 1) goto bad;
-  if (fscanf(fp, "nodes=%lld\n",     &n)   != 1) goto bad;
-  if (fscanf(fp, "best=%d\n",        &b)   != 1) goto bad;
-  if (fscanf(fp, "best_node=%lld\n", &bn)  != 1) goto bad;
-  if (fscanf(fp, "restarts=%d\n",    &r)   != 1) goto bad;
-  if (fscanf(fp, "bestbest=%d\n",    &bb)  != 1) goto bad;
-  if (fscanf(fp, "solutions=%d\n",   &sol) != 1) goto bad;
+  if (fscanf(fp, "ord=%d\n",         &ord)     != 1) goto bad;
+  if (fscanf(fp, "rownum=%d\n",      &rn)      != 1) goto bad;
+  if (fscanf(fp, "nodes=%lld\n",     &n)       != 1) goto bad;
+  if (fscanf(fp, "best=%d\n",        &b)       != 1) goto bad;
+  if (fscanf(fp, "best_node=%lld\n", &bn)      != 1) goto bad;
+  if (fscanf(fp, "restarts=%d\n",    &r)       != 1) goto bad;
+  if (fscanf(fp, "bestbest=%d\n",    &bb)      != 1) goto bad;
+  if (fscanf(fp, "solutions=%d\n",   &sol)     != 1) goto bad;
+  if (fscanf(fp, "elapsed=%lld\n",   &elapsed) != 1) goto bad;
   if (ord < 0 || ord > WIDTH*HEIGHT) goto bad;
   for (int i = 0; i < ord; i++) {
     if (fscanf(fp, "%d %d\n", &pn, &rot) != 2) goto bad;
@@ -148,15 +151,18 @@ int load_state(char *filename) {
     restore_pieces[i].rot      = rot;
   }
   fclose(fp);
-  rownum    = rn;
-  nodes     = n;
-  best      = b;
-  best_node = bn;
-  restarts  = r;
-  bestbest  = bb;
-  solutions = sol;
+  rownum         = rn;
+  initial_rownum = rn;
+  nodes      = n;
+  best       = b;
+  best_node  = bn;
+  restarts   = r;
+  bestbest   = bb;
+  solutions  = sol;
+  start_time = time(NULL) - (time_t)elapsed;
   restore_ord = ord;
-  printf("loaded state from %s (ord=%d, nodes=%lld, best=%d)\n", filename, ord, n, b);
+  printf("loaded state from %s (ord=%d, nodes=%lld, best=%d, elapsed=%llds)\n",
+         filename, ord, n, b, elapsed);
   fflush(stdout);
   return 1;
 bad:
@@ -510,23 +516,24 @@ fetch_rownum_from_web(void) {
   char password[256];
   if (!read_password(password, sizeof(password))) return -1;
 
-  char tmpname[] = "/tmp/e2curl.XXXXXX";
-  int fd = mkstemp(tmpname);
-  if (fd < 0) { perror("mkstemp"); return -1; }
-  FILE *cfp = fdopen(fd, "w");
-  fprintf(cfp, "user = \"reporter:%s\"\nurl = \"https://puzzlingaddiction.com/e2db/request_row\"\n", password);
-  fclose(cfp);
-
   char cmd[512];
-  snprintf(cmd, sizeof(cmd), "curl -sf -K '%s'", tmpname);
+  snprintf(cmd, sizeof(cmd),
+    "wget -q -O - --auth-no-challenge --http-user=reporter '--http-password=%s'"
+    " 'https://puzzlingaddiction.com/e2db/request_row'",
+    password);
   FILE *fp = popen(cmd, "r");
   char response[1024] = {0};
+  int ok = 0;
   if (fp) {
-    fread(response, 1, sizeof(response) - 1, fp);
-    pclose(fp);
+    size_t n = fread(response, 1, sizeof(response) - 1, fp);
+    response[n] = '\0';
+    ok = (pclose(fp) == 0);
   }
-  remove(tmpname);
 
+  if (!ok || response[0] == '\0') {
+    fprintf(stderr, "error: wget failed or empty response: %s\n", response);
+    return -1;
+  }
   char *p = strstr(response, "\"row_num\"");
   if (!p) { fprintf(stderr, "error: no row_num in web response: %s\n", response); return -1; }
   p += strlen("\"row_num\"");
@@ -571,7 +578,7 @@ origmain(char *argv1, char *argv2) {
     srand(atoi(argv2));
   } else {
     unsigned int seed = (unsigned int)(time(NULL) * 1000 + getpid() % 1000);
-    printf("rownum=%d seed=%u\n", rownum, seed);
+    printf("seed=%u\n", seed);
     srand(seed);
   }
 #endif
@@ -615,6 +622,7 @@ origmain(char *argv1, char *argv2) {
   Q = calloc(width*height, sizeof(square_t));
   restart();
   load_state(save_filename);
+  initial_rownum = rownum;
   last_save_time = time(NULL);
 #include "gensrc.c"
 }
@@ -643,6 +651,8 @@ main(int argc, char *argv[]) {
 
   if (argc >= 3) {
     rownum = atoi(argv[2]);
+    printf("rownum=%d (from command line)\n", rownum);
+    fflush(stdout);
     origmain(argv[1], argv[2]);
   } else {
     /* Determine rownum: try save file first, then web service. */
@@ -651,8 +661,12 @@ main(int argc, char *argv[]) {
     FILE *fp = fopen(savefile, "r");
     if (fp) {
       int ord_val, rn;
-      if (fscanf(fp, "ord=%d\n", &ord_val) == 1)
-        fscanf(fp, "rownum=%d\n", &rn) == 1 && (rownum = rn, 1);
+      if (fscanf(fp, "ord=%d\n", &ord_val) == 1 &&
+          fscanf(fp, "rownum=%d\n", &rn) == 1) {
+        rownum = rn;
+        printf("rownum=%d (from save file %s)\n", rownum, savefile);
+        fflush(stdout);
+      }
       fclose(fp);
     }
     if (rownum < 0) {
