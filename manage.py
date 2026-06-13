@@ -231,11 +231,15 @@ class Manager:
         info_x = sep_x + 1   # info panel starts here
         info_w = max(0, cols - info_x - 1)
 
+        now = time.time()
+        with self.lock:
+            total_rate = sum(w.rate for w in self.workers)
+
         # Title bar
-        title = f" Solver Manager — {SOLVER_NAME}  ({self.nworkers} workers)"
+        rate_str = f"{fmt_big(total_rate)}/s" if total_rate else "—"
+        title = f" Solver Manager — {SOLVER_NAME}  ({self.nworkers} workers)  {rate_str} combined"
         self._puts(stdscr, 0, 0, title.ljust(cols)[:cols], curses.A_REVERSE)
 
-        now = time.time()
         with self.lock:
             # Grid of worker cells
             for idx, w in enumerate(self.workers):
