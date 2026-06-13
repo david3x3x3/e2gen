@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -17,6 +18,20 @@ int fit_size1, fit_size2, placed[WIDTH*HEIGHT+1], bestbest=0, *fit_entries=NULL;
 long long nodes=0, best_node=0;
 time_t start_time;
 int solutions = 0;
+
+/* save/restore state */
+int current_ord = 0;
+int restore_ord = -1;
+char save_filename[256] = "";
+time_t last_save_time = 0;
+#define SAVE_INTERVAL 300  /* seconds between periodic saves */
+
+typedef struct { int piecenum, rot; } saved_piece_t;
+saved_piece_t restore_pieces[WIDTH*HEIGHT];
+
+static volatile int got_signal = 0;
+
+void signal_handler(int sig) { (void)sig; got_signal = 1; status_interval = 1; }
 
 typedef struct piece_s {
   int piecenum, rot;
@@ -39,6 +54,112 @@ typedef struct {
 } square_t;
 
 square_t *Q;
+
+/* Recompute the fit_table key for position ord given already-placed neighbors.
+   Mirrors the per-position key expression emitted by spiral-gen.py. */
+int compute_key(int ord) {
+  int pos = ord2pos[ord];
+  int r = pos / width;
+  int c = pos % width;
+  int dirs[4][2] = {{-1,0},{0,1},{1,0},{0,-1}};
+  int k = 0;
+  for (int dir = 0; dir < 4; dir++) {
+    int r2 = r + dirs[dir][0];
+    int c2 = c + dirs[dir][1];
+    int new_k;
+    if (r2 < 0 || r2 >= height || c2 < 0 || c2 >= width) {
+      new_k = 0;
+    } else {
+      int ord2 = pos2ord[r2*width+c2];
+      if (ord2 >= ord) {
+        new_k = fit_size1 - 1;  /* unknown neighbor -> max_edge+1 */
+      } else {
+        new_k = Q[ord2].pieces->piece->edges[(dir+2)%4];
+      }
+    }
+    k = k * fit_size1 + new_k;
+  }
+  return k;
+}
+
+/* Walk Q[0..target_ord-1] into the correct piecelist entries to match saved state. */
+void restore_to_state(int target_ord) {
+  int ord;
+  for (ord = 0; ord < target_ord; ord++) {
+    int key = compute_key(ord);
+    piecelist_t *pl = fit_table[key];  /* sentinel head */
+    while (pl->next != NULL) {
+      pl = pl->next;
+      if (pl->piece != NULL &&
+          pl->piece->piecenum == restore_pieces[ord].piecenum &&
+          pl->piece->rot    == restore_pieces[ord].rot) {
+        break;
+      }
+    }
+    Q[ord].pieces = pl;
+    Q[ord].active = TRUE;
+    placed[pl->piece->piecenum] = 1;
+  }
+  printf("restored to ord=%d\n", target_ord);
+  fflush(stdout);
+}
+
+void save_state(char *filename, int ord) {
+  int i;
+  FILE *fp = fopen(filename, "w");
+  if (!fp) { perror("save_state fopen"); return; }
+  fprintf(fp, "ord=%d\n", ord);
+  fprintf(fp, "nodes=%lld\n", nodes);
+  fprintf(fp, "best=%d\n", best);
+  fprintf(fp, "best_node=%lld\n", best_node);
+  fprintf(fp, "restarts=%d\n", restarts);
+  fprintf(fp, "bestbest=%d\n", bestbest);
+  fprintf(fp, "solutions=%d\n", solutions);
+  for (i = 0; i < ord; i++) {
+    fprintf(fp, "%d %d\n",
+            Q[i].pieces->piece->piecenum,
+            Q[i].pieces->piece->rot);
+  }
+  fclose(fp);
+  printf("state saved to %s (ord=%d)\n", filename, ord);
+  fflush(stdout);
+}
+
+int load_state(char *filename) {
+  int ord, pn, rot, b, r, bb, sol;
+  long long n, bn;
+  FILE *fp = fopen(filename, "r");
+  if (!fp) return 0;
+  if (fscanf(fp, "ord=%d\n",         &ord) != 1) goto bad;
+  if (fscanf(fp, "nodes=%lld\n",     &n)   != 1) goto bad;
+  if (fscanf(fp, "best=%d\n",        &b)   != 1) goto bad;
+  if (fscanf(fp, "best_node=%lld\n", &bn)  != 1) goto bad;
+  if (fscanf(fp, "restarts=%d\n",    &r)   != 1) goto bad;
+  if (fscanf(fp, "bestbest=%d\n",    &bb)  != 1) goto bad;
+  if (fscanf(fp, "solutions=%d\n",   &sol) != 1) goto bad;
+  if (ord < 0 || ord > WIDTH*HEIGHT) goto bad;
+  for (int i = 0; i < ord; i++) {
+    if (fscanf(fp, "%d %d\n", &pn, &rot) != 2) goto bad;
+    restore_pieces[i].piecenum = pn;
+    restore_pieces[i].rot      = rot;
+  }
+  fclose(fp);
+  nodes     = n;
+  best      = b;
+  best_node = bn;
+  restarts  = r;
+  bestbest  = bb;
+  solutions = sol;
+  restore_ord = ord;
+  printf("loaded state from %s (ord=%d, nodes=%lld, best=%d)\n", filename, ord, n, b);
+  fflush(stdout);
+  return 1;
+bad:
+  fclose(fp);
+  printf("warning: could not parse save file %s, starting fresh\n", filename);
+  fflush(stdout);
+  return 0;
+}
 
 void
 shuffle(int *array, size_t n) {
@@ -130,7 +251,7 @@ restart() {
   }
   nodes=best_node=0;
   best=0;
-  status_interval=20000;
+  status_interval=200000;
   for(i=0; i<=width*height; i++) {
     placed[i] = (i==0);
   }
@@ -254,7 +375,7 @@ print_status(int after_best, int last) {
   char msg2[1024];
   long long rate;
   char nodes_disp[6], rate_disp[6], bestn_disp[6];
-  
+
   bignum_fmt(nodes_disp, nodes);
   rate = nodes/(time(NULL)-start_time);
   bignum_fmt(rate_disp, rate);
@@ -271,15 +392,29 @@ print_status(int after_best, int last) {
     fflush(stdout);
 #endif
   }
-  if (nodes >= 20000) {
-    status_interval = 100000000;
+  if (nodes >= 200000) {
+    status_interval = 1000000000;
+  }
+  /* periodic save and signal check (only at the nodes-interval checkpoint,
+     not when called after placing a best piece, so current_ord is correct) */
+  if (!after_best && save_filename[0]) {
+    time_t now = time(NULL);
+    if (got_signal || now - last_save_time >= SAVE_INTERVAL) {
+      save_state(save_filename, current_ord);
+      last_save_time = now;
+    }
+    if (got_signal) {
+      printf("interrupted, exiting\n");
+      fflush(stdout);
+      exit(0);
+    }
   }
   if (!after_best) {
     if (width == 16 && height == 16 && (
 	best<127 ||
 	//	(nodes >= 100000000 && best<192) ||
 	// (nodes >= 20000000000 && best<208))) {
-	(nodes >= 100000000 && best<160) ||
+	(nodes >= 1000000000 && best<160) ||
 	(nodes >= 20000000000 && best<176))) {
       // these thresholds were designed for spiral with hints, but
       // they work ok for other arrangements
@@ -366,6 +501,10 @@ origmain(char *argv1, char *argv2) {
 
   core = atoi(argv1);
   rownum = atoi(argv2);
+  snprintf(save_filename, sizeof(save_filename), "e2state-%s.sav", argv1);
+  signal(SIGINT,  signal_handler);
+  signal(SIGTERM, signal_handler);
+
   sprintf(msg,"postMessage('core = %d');", core);
 #ifdef __EMSCRIPTEN__
   emscripten_run_script(msg);
@@ -424,6 +563,8 @@ origmain(char *argv1, char *argv2) {
   int dirs[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
   Q = calloc(width*height, sizeof(square_t));
   restart();
+  load_state(save_filename);
+  last_save_time = time(NULL);
 #include "gensrc.c"
 }
 
@@ -448,6 +589,8 @@ main(int argc, char *argv[]) {
   print_status(1, 0);
   printf("nodes = %lld\n", nodes);
   printf("solutions = %d\n", solutions);
+  if (save_filename[0])
+    remove(save_filename);
   exit(0);
 }
 #endif

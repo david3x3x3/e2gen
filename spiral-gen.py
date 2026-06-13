@@ -185,15 +185,28 @@ with open('genheader.h', 'w') as fp:
     fp.write(f'#define NUM_HINTS {num_hints}\n')
 
 with open('gensrc.c', 'w') as fp:
+    # Emit restore-dispatch preamble using GCC computed goto.
+    # At runtime, if restore_ord >= 0, restore_to_state() reconstructs Q[]
+    # and placed[], then we jump directly to the right case label.
+    fp.write('  {\n')
+    fp.write('    void *_case_labels[] = {\n      ')
+    fp.write(', '.join(f'&&case{i}' for i in range(width*height)))
+    fp.write('\n    };\n')
+    fp.write('    if (restore_ord >= 0) {\n')
+    fp.write('      int _ro = restore_ord;\n')
+    fp.write('      restore_ord = -1;\n')
+    fp.write('      restore_to_state(_ro);\n')
+    fp.write('      goto *_case_labels[_ro];\n')
+    fp.write('    }\n')
+    fp.write('  }\n')
+
     src2 = ''
-    # fp.write('ord1=0;\n');
-    # fp.write('while (TRUE) {\n');
-    # fp.write(' switch(ord1) {\n');
     for ord1 in range(width*height):
         pos1 = ord2pos[ord1]
         r1 = pos1 // width
         c1 = pos1 % width
         src2 = f'  case{ord1}:\n'
+        src2 += f'    current_ord = {ord1};\n'
         # src2 += f'  for(ord1=0; ord1<width*height; ord1++) {\n'
         # src2 += f'    int row1, col1, row2, col2, dir;\n'
         src2 += f'    if (!Q[{ord1}].active) {{\n'
