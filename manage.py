@@ -34,6 +34,8 @@ CP_SEL_RUN    = 3
 CP_SEL_DEAD   = 4
 CP_IMPROVED   = 5
 CP_LABEL      = 6
+CP_DONE       = 7   # completed a row and was restarted, awaiting review
+CP_SEL_DONE   = 8
 
 
 def fmt_duration(secs: float) -> str:
@@ -70,7 +72,8 @@ class Worker:
     last_log_lines: list = field(default_factory=list)
     alive: bool = False
     rownum: int = -1
-    improved_at: float = 0.0   # time.time() of last best improvement
+    needs_attention: bool = False   # restarted after completion; cleared on cursor visit
+    improved_at: float = 0.0        # time.time() of last best improvement
     solver_elapsed: int = 0    # elapsed seconds reported by solver in last status line
     elapsed_at: float = 0.0    # time.time() when that status line was parsed
 
@@ -146,6 +149,8 @@ class Manager:
                         w.alive = False
                     if not w.alive and self.running:
                         self._start_worker(w)
+                        if self.cursor != w.core:
+                            w.needs_attention = True
             time.sleep(REFRESH_INTERVAL)
 
     def _read_new_lines(self, w: Worker):
@@ -194,8 +199,10 @@ class Manager:
         curses.init_pair(CP_DEAD,     curses.COLOR_RED,    -1)
         curses.init_pair(CP_SEL_RUN,  curses.COLOR_BLACK,  curses.COLOR_GREEN)
         curses.init_pair(CP_SEL_DEAD, curses.COLOR_BLACK,  curses.COLOR_RED)
-        curses.init_pair(CP_IMPROVED, curses.COLOR_YELLOW, -1)
-        curses.init_pair(CP_LABEL,    curses.COLOR_CYAN,   -1)
+        curses.init_pair(CP_IMPROVED, curses.COLOR_YELLOW,  -1)
+        curses.init_pair(CP_LABEL,    curses.COLOR_CYAN,    -1)
+        curses.init_pair(CP_DONE,     curses.COLOR_MAGENTA, -1)
+        curses.init_pair(CP_SEL_DONE, curses.COLOR_BLACK,   curses.COLOR_MAGENTA)
 
         while self.running:
             key = stdscr.getch()
@@ -212,6 +219,8 @@ class Manager:
                 self.cursor = min(self.nworkers - 1, self.cursor + 1)
             elif key == ord('v'):
                 self._view_log(stdscr, self.workers[self.cursor])
+            with self.lock:
+                self.workers[self.cursor].needs_attention = False
 
             self._draw(stdscr)
 
@@ -262,7 +271,12 @@ class Manager:
                 is_improved = (now - w.improved_at) < IMPROVED_TTL
                 cell = f"{w.core:3d} "
                 if is_sel:
-                    attr = curses.color_pair(CP_SEL_RUN if w.alive else CP_SEL_DEAD)
+                    if w.needs_attention:
+                        attr = curses.color_pair(CP_SEL_DONE)
+                    else:
+                        attr = curses.color_pair(CP_SEL_RUN if w.alive else CP_SEL_DEAD)
+                elif w.needs_attention:
+                    attr = curses.color_pair(CP_DONE) | curses.A_BOLD
                 elif is_improved:
                     attr = curses.color_pair(CP_IMPROVED) | curses.A_BOLD
                 elif w.alive:
