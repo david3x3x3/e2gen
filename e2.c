@@ -588,22 +588,41 @@ report_result(void) {
     puzzle_id, initial_rownum, nodes, best, solutions,
     reporter, hostname, dttm);
 
+  /* Double-encode: wrap json string in outer quotes with inner quotes escaped,
+     matching requests.post(url, json=json.dumps(payload)) behaviour. */
+  char body[4096];
+  char *bp = body;
+  *bp++ = '"';
+  for (char *s = json; *s && bp < body + sizeof(body) - 3; s++) {
+    if (*s == '"') { *bp++ = '\\'; *bp++ = '"'; }
+    else *bp++ = *s;
+  }
+  *bp++ = '"';
+  *bp = '\0';
+
+  printf("reporting result: %s\n", json);
+  fflush(stdout);
+
   char cmd[2048];
   snprintf(cmd, sizeof(cmd),
-    "wget -q -O - --auth-no-challenge --http-user=reporter '--http-password=%s'"
+    "wget -q -O - --http-user=reporter '--http-password=%s'"
     " --header='Content-Type: application/json'"
     " --post-data='%s'"
     " 'https://puzzlingaddiction.com/e2db/store_result'",
-    password, json);
+    password, body);
 
   FILE *fp = popen(cmd, "r");
   char response[1024] = {0};
+  int ok = 0;
   if (fp) {
     size_t n = fread(response, 1, sizeof(response) - 1, fp);
     response[n] = '\0';
-    pclose(fp);
+    ok = (pclose(fp) == 0);
   }
-  printf("result reported: %s\n", response[0] ? response : "(no response)");
+  if (ok)
+    printf("result reported: %s\n", response[0] ? response : "(ok, no body)");
+  else
+    fprintf(stderr, "warning: result report failed: %s\n", response[0] ? response : "(no response)");
   fflush(stdout);
 }
 

@@ -13,7 +13,8 @@ while [ $s -lt 21 ]; do
     s=$((s+1))
 done
 # for what in 10x10.spiral.0 10x10.row.0 18x18.spiral.0 18x18.row.0 20x20.spiral.0 20x20.row.0; do
-for what in 9x9.row.0.7 10x10.row.0.10 eternity2.row.1.7; do
+# for what in 10x10.row.0.10 eternity2.row.1.7; do
+for what in 9x9.row.0.5 9x9.row.0.9 8x8.row.0.2 8x8.row.0.3 6x6.row.0.1 6x6.row.0.2 6x6.row.0.3; do
     echo $what
     puzzle=$(echo $what | cut -d. -f1)
     method=$(echo $what | cut -d. -f2)
@@ -27,8 +28,7 @@ for what in 9x9.row.0.7 10x10.row.0.10 eternity2.row.1.7; do
     fi
 
     # emcc -s BINARYEN=1 -s EXPORTED_FUNCTIONS=_main,_origmain -s EXPORTED_RUNTIME_METHODS=ccall -O2 -o ${name}-wasm.js e2.c
-    # gcc -O6 -o $name e2.c
-    x86_64-w64-mingw32-gcc -O6 -o $name e2.c
-    # gcc -O6 -o $name e2.c
+    # x86_64-w64-mingw32-gcc -O6 -o $name e2.c
+    gcc -O3 -o $name e2.c
     # clang -O3 -o $name e2.c
 done
