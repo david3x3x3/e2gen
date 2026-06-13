@@ -25,6 +25,7 @@ SHUTDOWN_TIMEOUT = 10    # seconds to wait for graceful solver exit
 STATUS_RE = re.compile(
     r"status best=(\d+) \((\S+)\) nodes=(\d+) time=(\d+) rate=(\d+) restarts=(\d+)"
 )
+ROWNUM_RE = re.compile(r"rownum=(\d+)")
 
 # curses color pair IDs
 CP_RUNNING    = 1
@@ -68,6 +69,7 @@ class Worker:
     log_file_pos: int = 0
     last_log_lines: list = field(default_factory=list)
     alive: bool = False
+    rownum: int = -1
     improved_at: float = 0.0   # time.time() of last best improvement
     solver_elapsed: int = 0    # elapsed seconds reported by solver in last status line
     elapsed_at: float = 0.0    # time.time() when that status line was parsed
@@ -157,6 +159,9 @@ class Manager:
         for raw in new_lines:
             line = raw.rstrip()
             w.last_log_lines.append(line)
+            rn = ROWNUM_RE.match(line)
+            if rn:
+                w.rownum = int(rn.group(1))
             m = STATUS_RE.search(line)
             if m:
                 new_best = int(m.group(1))
@@ -280,11 +285,13 @@ class Manager:
                 runtime = "—"
             pid_s = str(sel.proc.pid) if sel.proc else "—"
 
+            rownum_s = str(sel.rownum) if sel.rownum >= 0 else "—"
             fields = [
                 ("Core",     str(sel.core)),
                 ("PID",      pid_s),
                 ("Status",   "running" if sel.alive else "stopped"),
                 ("Runtime",  runtime),
+                ("Row",      rownum_s),
                 ("Best",     f"{sel.best}  (node {sel.best_node_disp})"),
                 ("Nodes",    fmt_big(sel.nodes)),
                 ("Rate",     f"{fmt_big(sel.rate)}/s"),
