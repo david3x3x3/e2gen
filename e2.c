@@ -28,7 +28,11 @@ int current_ord = 0;
 int restore_ord = -1;
 char save_filename[256] = "";
 time_t last_save_time = 0;
-#define SAVE_INTERVAL 300  /* seconds between periodic saves */
+#ifdef __EMSCRIPTEN__
+#define SAVE_INTERVAL 60
+#else
+#define SAVE_INTERVAL 300
+#endif
 
 typedef struct { int piecenum, rot; } saved_piece_t;
 saved_piece_t restore_pieces[WIDTH*HEIGHT];
@@ -110,6 +114,25 @@ void restore_to_state(int target_ord) {
 
 void save_state(char *filename, int ord) {
   int i;
+#ifdef __EMSCRIPTEN__
+  char buf[65536];
+  int pos = 0;
+  pos += snprintf(buf + pos, sizeof(buf) - pos,
+    "postMessage({msgType:'save',data:{ord:%d,rownum:%d,nodes:%lld,best:%d"
+    ",best_node:%lld,restarts:%d,bestbest:%d,solutions:%d,elapsed:%lld,pieces:[",
+    ord, initial_rownum, nodes, best, best_node, restarts, bestbest, solutions,
+    (long long)(time(NULL) - start_time));
+  for (i = 0; i < ord; i++) {
+    pos += snprintf(buf + pos, sizeof(buf) - pos, "%s[%d,%d]",
+      i > 0 ? "," : "",
+      Q[i].pieces->piece->piecenum,
+      Q[i].pieces->piece->rot);
+  }
+  snprintf(buf + pos, sizeof(buf) - pos, "]}});");
+  emscripten_run_script(buf);
+  printf("state posted to JS (ord=%d)\n", ord);
+  fflush(stdout);
+#else
   FILE *fp = fopen(filename, "w");
   if (!fp) { perror("save_state fopen"); return; }
   fprintf(fp, "ord=%d\n", ord);
@@ -129,6 +152,7 @@ void save_state(char *filename, int ord) {
   fclose(fp);
   printf("state saved to %s (ord=%d)\n", filename, ord);
   fflush(stdout);
+#endif
 }
 
 int load_state(char *filename) {
@@ -704,6 +728,9 @@ origmain(char *argv1, char *argv2) {
   Q = calloc(width*height, sizeof(square_t));
   restart();
   load_state(save_filename);
+#ifdef __EMSCRIPTEN__
+  if (rownum < 0 && argv2) rownum = atoi(argv2);
+#endif
   initial_rownum = rownum;
   last_save_time = time(NULL);
 #include "gensrc.c"
@@ -715,8 +742,15 @@ int
 main() {
   emscripten_run_script(
     "onmessage = function(e) {"
-    " console.log('Message received from main script: ' + e.data);"
-    "Module.ccall('origmain','number',['string','string'],['0',e.data]);}");
+    " var d = e.data;"
+    " var rownum = (typeof d === 'object' && d.rownum !== undefined) ? d.rownum : d;"
+    " if (typeof d === 'object' && d.saveText) {"
+    "   Module.FS.writeFile('e2state--0.sav', d.saveText);"
+    "   console.log('restored save file to MEMFS');"
+    " }"
+    " console.log('origmain rownum=' + rownum);"
+    " Module.ccall('origmain','number',['string','string'],['0',rownum+'']);"
+    "}");
   emscripten_run_script("postMessage('worker is ready');");
   printf("and we're off...\n");
   return 0;

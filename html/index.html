@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+      #container {
+        position:relative;
+        width:528px;
+        height:528px;
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+  <div id="container">
+    <div id="tray"></div>
+  </div>
+
+  <p>Testing links:
+    <a href="?puz=b9x9s1">9x9</a>
+    <a href="?puz=b10x10s1">10x10</a>
+    <a href="?puz=eternity2">eternity2</a>
+  </p>
+
+<p><output id="url">link</output></p>
+<p>Best: <output id="best"></output></p>
+<p>Results:<output id="results"></output></p>
+
+<table border=1>
+  <tr>
+    <td><button onclick="startWorker(0)">Start Worker</button></td>
+    <td><button onclick="stopWorker(0)">Stop Worker</button></td>
+    <td><output id="r0c1"/></td>
+    <td>Status: <output id="status0"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(1)">Start Worker</button></td>
+    <td><button onclick="stopWorker(1)">Stop Worker</button></td>
+    <td><output id="r1c1"/></td>
+    <td>Status: <output id="status1"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(2)">Start Worker</button></td>
+    <td><button onclick="stopWorker(2)">Stop Worker</button></td>
+    <td><output id="r2c1"/></td>
+    <td>Status: <output id="status2"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(3)">Start Worker</button></td>
+    <td><button onclick="stopWorker(3)">Stop Worker</button></td>
+    <td><output id="r3c1"/></td>
+    <td>Status: <output id="status3"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(4)">Start Worker</button></td>
+    <td><button onclick="stopWorker(4)">Stop Worker</button></td>
+    <td><output id="r4c1"/></td>
+    <td>Status: <output id="status4"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(5)">Start Worker</button></td>
+    <td><button onclick="stopWorker(5)">Stop Worker</button></td>
+    <td><output id="r5c1"/></td>
+    <td>Status: <output id="status5"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(6)">Start Worker</button></td>
+    <td><button onclick="stopWorker(6)">Stop Worker</button></td>
+    <td><output id="r6c1"/></td>
+    <td>Status: <output id="status6"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(7)">Start Worker</button></td>
+    <td><button onclick="stopWorker(7)">Stop Worker</button></td>
+    <td><output id="r7c1"/></td>
+    <td>Status: <output id="status7"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(8)">Start Worker</button></td>
+    <td><button onclick="stopWorker(8)">Stop Worker</button></td>
+    <td><output id="r8c1"/></td>
+    <td>Status: <output id="status8"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(9)">Start Worker</button></td>
+    <td><button onclick="stopWorker(9)">Stop Worker</button></td>
+    <td><output id="r9c1"/></td>
+    <td>Status: <output id="status9"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(10)">Start Worker</button></td>
+    <td><button onclick="stopWorker(10)">Stop Worker</button></td>
+    <td><output id="r10c1"/></td>
+    <td>Status: <output id="status10"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(11)">Start Worker</button></td>
+    <td><button onclick="stopWorker(11)">Stop Worker</button></td>
+    <td><output id="r11c1"/></td>
+    <td>Status: <output id="status11"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(12)">Start Worker</button></td>
+    <td><button onclick="stopWorker(12)">Stop Worker</button></td>
+    <td><output id="r12c1"/></td>
+    <td>Status: <output id="status12"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(13)">Start Worker</button></td>
+    <td><button onclick="stopWorker(13)">Stop Worker</button></td>
+    <td><output id="r13c1"/></td>
+    <td>Status: <output id="status13"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(14)">Start Worker</button></td>
+    <td><button onclick="stopWorker(14)">Stop Worker</button></td>
+    <td><output id="r14c1"/></td>
+    <td>Status: <output id="status14"></output></td>
+  </tr>
+  <tr>
+    <td><button onclick="startWorker(15)">Start Worker</button></td>
+    <td><button onclick="stopWorker(15)">Stop Worker</button></td>
+    <td><output id="r15c1"/></td>
+    <td>Status: <output id="status15"></output></td>
+  </tr>
+</table>
+
+<script>
+var w = [];
+var saveUsed = [];  // true after first postMessage to a worker in this session
+
+function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? decodeURIComponent(v[2]) : null;
+}
+
+function setCookie(name, value, days) {
+    document.cookie = name + '=' + encodeURIComponent(value) +
+        '; max-age=' + (days * 86400) + '; path=/; SameSite=Lax';
+}
+
+function saveDataToText(d) {
+    var s = 'ord=' + d.ord + '\nrownum=' + d.rownum + '\nnodes=' + d.nodes +
+        '\nbest=' + d.best + '\nbest_node=' + d.best_node +
+        '\nrestarts=' + d.restarts + '\nbestbest=' + d.bestbest +
+        '\nsolutions=' + d.solutions + '\nelapsed=' + d.elapsed + '\n';
+    for (var i = 0; i < d.pieces.length; i++) {
+        s += d.pieces[i][0] + ' ' + d.pieces[i][1] + '\n';
+    }
+    return s;
+}
+
+function printSol(p) {
+    url = `<a href="https://e2.bucas.name/#puzzle=EternityII&board_w=${width}&board_h=${height}&board_edges=`;
+    // console.log('printsol(' + p + ')');
+    var msg = '';
+    for(i=0;i<p.length; i++) {
+        msg = msg + p[i][0] + '/' + p[i][1] + ' ';
+    }
+    msg = p.length + ": " + msg;
+    //console.log(msg);
+    //document.getElementById("best").innerHTML = msg;
+
+    //addMsg(msg);
+
+    for(var row=0;row<height;row++) {
+	for(var col=0;col<width;col++) {
+	    for(var rot=0;rot<4;rot++) {
+		if(row*width+col < i && p[row*width+col][0] > 0) {
+		    v = pieces[p[row*width+col][0]-1][(4+rot-p[row*width+col][1])%4];
+		    var src = "img/" + v + "-" + rot + ".png";
+		    url += "animovhuqprslwtjgkbdecf"[v];
+		} else {
+		    if((rot%2)==0) {
+			src = 'img/blankh.gif';
+		    } else {
+			src = 'img/blankv.gif';
+		    }
+		    url += 'a';
+		}
+		$("#n" + (row*width+col) + "-" + rot).attr("src", src);
+	    }
+	}
+    }
+    url += '&board_pieces=';
+    for(var row=0;row<height;row++) {
+	for(var col=0;col<width;col++) {
+	    if(row*width+col < i && p[row*width+col][0] > 0) {
+		url += ("00" + p[row*width+col][0]).slice (-3);
+	    }
+	}
+    }
+    url += '" target="_blank">bucas.name</a>';
+    $("#url").html(url);
+}
+
+var best=0;
+
+  function startWorker(n) {
+      var self = this;
+      var n2 = n;
+
+      if (typeof w[n] !== 'undefined') {
+	  console.log('stopping before starting');
+	  stopWorker(n);
+      }
+
+      console.log("button #" + n);
+      //var puznum = $("#puzname option:selected").val();
+      console.log('puz = ' + puz);
+
+      //var puz = ['b9x9s1','b10x10s1','eternity2'][puznum];
+
+      var puzname = '';
+      if (puz == 'b9x9s1') {
+	  puzname = '9x9-row-7-259478-wasm';
+      } else if (puz == 'b10x10s1') {
+	  puzname = '10x10-row-10-19864204-wasm';
+      } else if (puz == 'eternity2') {
+	  puzname = 'eternity2-row-7-6003355-wasm';
+      }
+      
+      //var maxrow  = [259478,19864204,6003355][puznum];
+      var num;
+      console.log('puzname = ' + puzname);
+      //printSol([]);
+      if(typeof(Worker) !== "undefined") {
+          if(typeof(w[n]) == "undefined") {
+              w[n] = new Worker(puzname + ".js");
+          }
+          w[n].onmessage = function (e) {
+              console.log("main thread writing message back")
+              self.w[n2].onmessage = function (e) {
+		  if(e.data.msgType == 'status') {
+		      document.getElementById("status"+n2).innerHTML = e.data.data;
+		      var words = e.data.data.split(" ");
+		      if (words[words.length-1] == 'last=1') {
+			  // we need to record this result somewhere. somehow.
+			  num = document.getElementById("r"+n2+"c1").innerHTML;
+			  $("#results").append(`<br>row=${num} ${e.data.data}`);
+			  startWorker(n);
+		      }
+		  } else if(e.data.msgType == 'exit') {
+		      console.log('exit: ' + n2 + ', ' + JSON.stringify(e.data));
+		      num = Math.floor(Math.random() * maxrow)+'';
+		      self.w[n2].postMessage(maxrow+'');
+		      document.getElementById("r"+n2+"c1").innerHTML = num;
+		  } else if(e.data.msgType == 'best') {
+		      score = e.data.data[0];
+		      //score = e.data.data.length;
+		      //console.log(n2 + ' best string length = ' + score);
+		      if(score > self.best) {
+			  // console.log('new best score:' + score);
+			  // var msg='';
+			  // for(i=0;i<256;i++) {
+			  //   msg += e.data.data[1][i][0] + ''
+			  //   if(e.data.data[1][i][0] > 0) {
+			  //     msg += '/' + e.data.data[1][i][1];
+			  //   }
+			  //   msg += ' ';
+			  // }
+			  // console.log(msg)
+			  printSol(e.data.data[1]);
+			  self.best = score;
+			  document.getElementById("best").innerHTML = score;
+		      }
+		  } else if(e.data.msgType == 'save') {
+		      setCookie('e2save_' + puz, JSON.stringify(e.data.data), 30);
+		  } else {
+		      console.log('received message: ' + n2 + ', ' + JSON.stringify(e.data));
+		      document.getElementById("status"+n2).innerHTML = JSON.stringify(e.data);
+		  }
+              };
+	      $.ajax({
+		  url: 'req-' + puz + ".cgi",
+		  async:false,
+		  success:function(rowdata) {
+		      num = rowdata.rownum;
+		      // alert('assigned row ' + num);
+		  },
+		  error:function(reply) {
+		      alert("ajax error");
+		  }
+	      });
+              // num = Math.floor(Math.random() * maxrow)+'';
+              var msgToSend = num + '';
+              if (!saveUsed[n2]) {
+                  saveUsed[n2] = true;
+                  var savedJson = getCookie('e2save_' + puz);
+                  if (savedJson) {
+                      try {
+                          var savedData = JSON.parse(savedJson);
+                          msgToSend = {rownum: num, saveText: saveDataToText(savedData)};
+                          console.log('restoring save for worker ' + n2 + ' from cookie');
+                      } catch(err) {
+                          console.log('bad save cookie, ignoring: ' + err);
+                      }
+                  }
+              }
+              self.w[n2].postMessage(msgToSend);
+              document.getElementById("r"+n2+"c1").innerHTML = num;
+          };
+      } else {
+          document.getElementById("status").innerHTML = "Sorry, your browser does not support Web Workers...";
+      }
+  }
+
+function stopWorker(n) { 
+    w[n].terminate();
+    w[n] = undefined;
+    document.getElementById("r"+n+"c1").innerHTML = "";
+}
+
+var puz;
+
+$(document).ready(function() { 
+    // load piece data 
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    puz = urlParams.get('puz');
+    if(puz == null) {
+	puz = 'b10x10s1';
+    }
+    $.ajax({
+	url: 'json/' + puz + ".json",
+	async:false,
+	success:function(piecedata) {
+	    pieces = piecedata.pieces;
+	    width = piecedata.width;
+	    height = piecedata.height;
+	    //alert(pieces[4][2]);
+	},
+	error:function(reply) {
+	    alert("ajax error");
+	}
+    });
+    tray = [];
+    for(var i=0;i<height;i++) {
+	tray[i] = [];
+    }
+    //tray[0][0]=v;
+
+    // set up images
+    tab = "";
+    var top = 0;
+    for(var row=0; row < height; row++) {
+	var left = 0;
+	for(var col=0; col < width; col++) {
+	    for(var rot=0; rot<4; rot++) {
+		tab += '<img id="n' + (row*width+col) + '-' + rot +
+		    '" style="position:absolute;left:' + (left + (rot==1)*16) +
+		    'px;top:' + (top + (rot==2)*16) + 'px;width:' + 
+		    (1+((rot%2)==0))*16 + 'px;height:' + (1+((rot%2)==1))*16 +
+		    'px;" src=img/' + pieces[row*width+col][(rot+2)%4] + '-' +
+	            rot + '.png />\n';
+	    }
+	    left += 33;
+	}
+	top += 33;
+    }
+    //console.log('tray = ' + tab);
+    $('#container').height(height*32);
+    $('#tray').html(tab);
+});
+</script>
+
+</body>
+</html>
