@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,17 +17,3 @@ jobs:
 
       - name: Build WASM
         run: bash build.sh
-
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "StrictHostKeyChecking no" >> ~/.ssh/config
-
-      - name: Deploy
-        run: |
-          rsync -avz --exclude=bak/ \
-            html/ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "chmod +x ${{ secrets.DEPLOY_PATH }}/*.cgi"
