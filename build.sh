@@ -20,7 +20,13 @@ for what in 9x9.row.0.7 10x10.row.0.10; do
     method=$(echo $what | cut -d. -f2)
     hints=$(echo $what | cut -d. -f3)
     rowsize=$(echo $what | cut -d. -f4)
-    numrows=$(python3 et2.py $puzzle $rowsize | grep 'solutions$' | cut -d' ' -f1)
+    cache=".numrows-cache-${puzzle}-${rowsize}"
+    if [ -f "$cache" ]; then
+        numrows=$(cat "$cache")
+    else
+        numrows=$(python3 et2.py $puzzle $rowsize | grep 'solutions$' | cut -d' ' -f1)
+        echo "$numrows" > "$cache"
+    fi
     python3 spiral-gen.py $puzzle $method $hints $rowsize
     name="${puzzle}-${method}-${rowsize}-${numrows}"
     if [ $hints -gt 1 ]; then

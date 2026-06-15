@@ -1,4 +1,5 @@
 password.txt
+.numrows-cache-*
 deploy.sh
 html/*.js
 html/*.wasm

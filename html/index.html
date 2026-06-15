@@ -262,9 +262,24 @@ function stopWorker() {
     document.getElementById('btn-stop').disabled  = true;
 }
 
+function resetUI() {
+    best = 0;
+    lastElapsed = 0; lastUpdateTS = null;
+    ['s-best', 's-best-node', 's-nodes', 's-time', 's-rate'].forEach(function(id) {
+        document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('url-line').innerHTML = '';
+    document.getElementById('results').innerHTML = '';
+    for (var i = 0; i < height * width; i++)
+        for (var rot = 0; rot < 4; rot++)
+            $('#n' + i + '-' + rot).attr('src', (rot % 2) === 0 ? 'img/blankh.gif' : 'img/blankv.gif');
+}
+
 function newRow() {
     deleteCookie('e2save_' + puz);
+    deleteCookie('e2best_' + puz);
     saveUsed = true;   // don't try to restore from (now-deleted) cookie
+    resetUI();
     stopWorker();
     startWorker();
 }
