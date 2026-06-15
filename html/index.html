@@ -262,6 +262,7 @@ var best=0;
 			  printSol(e.data.data[1]);
 			  self.best = score;
 			  document.getElementById("best").innerHTML = score;
+			  setCookie('e2best_' + puz, JSON.stringify({score: score, pieces: e.data.data[1]}), 30);
 		      }
 		  } else if(e.data.msgType == 'save') {
 		      setCookie('e2save_' + puz, JSON.stringify(e.data.data), 30);
@@ -360,6 +361,18 @@ $(document).ready(function() {
     //console.log('tray = ' + tab);
     $('#container').height(height*32);
     $('#tray').html(tab);
+
+    var bestJson = getCookie('e2best_' + puz);
+    if (bestJson) {
+        try {
+            var bestData = JSON.parse(bestJson);
+            best = bestData.score;
+            document.getElementById('best').innerHTML = bestData.score;
+            printSol(bestData.pieces);
+        } catch(err) {
+            console.log('bad best cookie: ' + err);
+        }
+    }
 });
 </script>
 
