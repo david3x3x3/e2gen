@@ -42,6 +42,7 @@
   #puzzle-links { margin-top: 14px; font-size: 13px; color: #888; }
   #puzzle-links a { margin-right: 10px; }
 </style>
+<script src="wasm-version.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 </head>
 <body>
@@ -190,7 +191,7 @@ function startWorker() {
     var name = puzname();
     if (!name) { alert('unknown puzzle: ' + puz); return; }
 
-    w = new Worker(name + '.js');
+    w = new Worker(name + '.js' + (WASM_VERSION ? '?v=' + WASM_VERSION : ''));
     document.getElementById('btn-start').disabled = true;
     document.getElementById('btn-stop').disabled  = false;
     document.getElementById('btn-new').disabled   = false;
@@ -222,7 +223,11 @@ function handleMessage(e) {
             setCookie('e2best_' + puz, JSON.stringify({score: score, pieces: e.data.data[1]}), 30);
         }
     } else if (e.data.msgType === 'save') {
-        setCookie('e2save_' + puz, JSON.stringify(e.data.data), 30);
+        var json = JSON.stringify(e.data.data);
+        console.log('save received, size=' + json.length + ' pieces=' + (e.data.data.pieces ? e.data.data.pieces.length : '?'));
+        setCookie('e2save_' + puz, json, 30);
+        var check = getCookie('e2save_' + puz);
+        if (!check) console.warn('save cookie not set (too large?)');
     } else if (e.data.msgType === 'exit') {
         sendRow();
     }
