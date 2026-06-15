@@ -1,1 +1,7 @@
 password.txt
+deploy.sh
+html/*.js
+html/*.wasm
+html/bak/
+html/*-list.txt
+eternity2.json~
