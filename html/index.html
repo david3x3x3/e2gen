@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { font-family: sans-serif; margin: 16px; }
@@ -28,6 +29,13 @@
   #status-table td:last-child { font-variant-numeric: tabular-nums; }
   #s-best { font-size: 22px; font-weight: bold; }
 
+  #status-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #ccc; margin-left: 5px; vertical-align: middle;
+    transition: background 1.2s ease;
+  }
+  #status-dot.pulse { background: #22c55e; transition: none; }
+
   #url-line { font-size: 13px; margin-bottom: 10px; }
   #results  { font-size: 12px; color: #555; max-height: 100px; overflow-y: auto; }
 
@@ -53,9 +61,8 @@
       <tr><td>Best</td>     <td><span id="s-best">—</span></td></tr>
       <tr><td>Best at</td>  <td id="s-best-node">—</td></tr>
       <tr><td>Nodes</td>    <td id="s-nodes">—</td></tr>
-      <tr><td>Time</td>     <td id="s-time">—</td></tr>
+      <tr><td>Time <span id="status-dot"></span></td> <td id="s-time">—</td></tr>
       <tr><td>Rate</td>     <td id="s-rate">—</td></tr>
-      <tr><td>Restarts</td> <td id="s-restarts">—</td></tr>
     </table>
     <div id="url-line"></div>
     <div id="results"></div>
@@ -72,6 +79,7 @@
 var w;
 var saveUsed = false;
 var puz, pieces, width, height, best = 0;
+var lastElapsed = 0, lastUpdateTS = null;
 
 // ── cookie helpers ────────────────────────────────────────────────────────────
 function getCookie(name) {
@@ -93,6 +101,12 @@ function fmtNum(n) {
     if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
     return '' + n;
 }
+function fmtNodes(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+    return '' + n;
+}
 function fmtTime(s) {
     s = +s;
     if (s < 60)   return s + 's';
@@ -102,13 +116,24 @@ function fmtTime(s) {
 
 function parseStatus(s) {
     var m;
-    m = s.match(/best=(\d+)/);     if (m) document.getElementById('s-best').textContent = m[1];
-    m = s.match(/\((\w+)\)/);      if (m) document.getElementById('s-best-node').textContent = 'node ' + m[1];
-    m = s.match(/nodes=(\d+)/);    if (m) document.getElementById('s-nodes').textContent = fmtNum(+m[1]);
-    m = s.match(/time=(\d+)/);     if (m) document.getElementById('s-time').textContent = fmtTime(+m[1]);
-    m = s.match(/rate=(\d+)/);     if (m) document.getElementById('s-rate').textContent = fmtNum(+m[1]) + '/s';
-    m = s.match(/restarts=(\d+)/); if (m) document.getElementById('s-restarts').textContent = m[1];
+    m = s.match(/best=(\d+)/);  if (m) document.getElementById('s-best').textContent = m[1];
+    m = s.match(/\((\w+)\)/);   if (m) document.getElementById('s-best-node').textContent = 'node ' + m[1];
+    m = s.match(/nodes=(\d+)/); if (m) document.getElementById('s-nodes').textContent = fmtNodes(+m[1]);
+    m = s.match(/time=(\d+)/);  if (m) { lastElapsed = +m[1]; lastUpdateTS = Date.now(); }
+    m = s.match(/rate=(\d+)/);  if (m) document.getElementById('s-rate').textContent = fmtNum(+m[1]) + '/s';
+    var dot = document.getElementById('status-dot');
+    dot.classList.remove('pulse');
+    void dot.offsetWidth;
+    dot.classList.add('pulse');
+    setTimeout(function() { dot.classList.remove('pulse'); }, 50);
 }
+
+setInterval(function() {
+    if (lastUpdateTS !== null) {
+        var secs = lastElapsed + Math.floor((Date.now() - lastUpdateTS) / 1000);
+        document.getElementById('s-time').textContent = fmtTime(secs);
+    }
+}, 1000);
 
 // ── puzzle image ──────────────────────────────────────────────────────────────
 function printSol(p) {
@@ -232,6 +257,7 @@ function sendRow() {
 
 function stopWorker() {
     if (typeof w !== 'undefined') { w.terminate(); w = undefined; }
+    lastUpdateTS = null;
     document.getElementById('btn-start').disabled = false;
     document.getElementById('btn-stop').disabled  = true;
 }
@@ -271,7 +297,7 @@ $(document).ready(function() {
         }
         top += 33;
     }
-    $('#container').height(height * 32);
+    $('#container').width(width * 33).height(height * 33);
     $('#tray').html(tab);
 
     // restore best solution image from cookie
