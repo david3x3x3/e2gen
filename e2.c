@@ -429,7 +429,7 @@ print_status(int after_best, int last) {
 #endif
   }
   if (nodes >= 200000) {
-    status_interval = 1000000000;
+    status_interval = 100000000;
   }
   /* periodic save and signal check (only at the nodes-interval checkpoint,
      not when called after placing a best piece, so current_ord is correct) */
