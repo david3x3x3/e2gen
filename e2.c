@@ -29,7 +29,7 @@ int restore_ord = -1;
 char save_filename[256] = "";
 time_t last_save_time = 0;
 #ifdef __EMSCRIPTEN__
-#define SAVE_INTERVAL 60
+#define SAVE_INTERVAL 15
 #else
 #define SAVE_INTERVAL 300
 #endif
