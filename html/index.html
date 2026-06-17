@@ -251,7 +251,10 @@ function sendRow() {
         if (savedJson) {
             try {
                 var savedData = JSON.parse(savedJson);
-                msg = {rownum: num, saveText: saveDataToText(savedData)};
+                // Use the saved rownum — the solver will run on this row,
+                // so the display must match it (not the CGI-assigned num).
+                msg = {rownum: savedData.rownum, saveText: saveDataToText(savedData)};
+                document.getElementById('rownum').textContent = savedData.rownum;
                 console.log('restoring save from cookie (row ' + savedData.rownum + ')');
             } catch (err) {
                 console.log('bad save cookie, ignoring: ' + err);
