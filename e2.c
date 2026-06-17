@@ -409,7 +409,7 @@ static double
 compute_search_percent(void) {
   double fraction = 0.0;
   double weight = 1.0;
-  for (int ord = 0; ord <= current_ord; ord++) {
+  for (int ord = ROWNUM_ORD + 1; ord <= current_ord; ord++) {
     if (!Q[ord].active || Q[ord].pieces == NULL || Q[ord].pieces->piece == NULL)
       break;
     piecelist_t *sentinel = fit_table[compute_key(ord)];

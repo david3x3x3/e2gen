@@ -183,6 +183,7 @@ with open('genheader.h', 'w') as fp:
     fp.write(f'#define WIDTH {width}\n')
     fp.write(f'#define HEIGHT {height}\n')
     fp.write(f'#define NUM_HINTS {num_hints}\n')
+    fp.write(f'#define ROWNUM_ORD {rowsize-1}\n')
 
 with open('gensrc.c', 'w') as fp:
     # Emit restore-dispatch preamble using GCC computed goto.
