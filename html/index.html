@@ -267,6 +267,7 @@ function sendRow() {
 function stopWorker() {
     if (typeof w !== 'undefined') { w.terminate(); w = undefined; }
     lastUpdateTS = null;
+    saveUsed = false;   // allow save cookie restore on next start
     document.getElementById('btn-start').disabled = false;
     document.getElementById('btn-stop').disabled  = true;
 }
@@ -291,9 +292,9 @@ function resetUI() {
 function newRow() {
     deleteCookie('e2save_' + puz);
     deleteCookie('e2best_' + puz);
-    saveUsed = true;   // don't try to restore from (now-deleted) cookie
     resetUI();
     stopWorker();
+    saveUsed = true;   // don't try to restore from (now-deleted) cookie
     startWorker();
 }
 
