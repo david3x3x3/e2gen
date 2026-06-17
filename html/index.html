@@ -235,24 +235,13 @@ function handleMessage(e) {
 }
 
 function sendRow() {
-    var num;
-    $.ajax({
-        url: 'req-' + puz + '.cgi',
-        async: false,
-        success: function(d) { num = d.rownum; },
-        error:   function()  { alert('ajax error fetching row'); }
-    });
-    document.getElementById('rownum').textContent = num;
-
-    var msg = num + '';
+    var msg;
     if (!saveUsed) {
         saveUsed = true;
         var savedJson = getCookie('e2save_' + puz);
         if (savedJson) {
             try {
                 var savedData = JSON.parse(savedJson);
-                // Use the saved rownum — the solver will run on this row,
-                // so the display must match it (not the CGI-assigned num).
                 msg = {rownum: savedData.rownum, saveText: saveDataToText(savedData)};
                 document.getElementById('rownum').textContent = savedData.rownum;
                 console.log('restoring save from cookie (row ' + savedData.rownum + ')');
@@ -260,6 +249,17 @@ function sendRow() {
                 console.log('bad save cookie, ignoring: ' + err);
             }
         }
+    }
+    if (msg === undefined) {
+        var num;
+        $.ajax({
+            url: 'req-' + puz + '.cgi',
+            async: false,
+            success: function(d) { num = d.rownum; },
+            error:   function()  { alert('ajax error fetching row'); }
+        });
+        document.getElementById('rownum').textContent = num;
+        msg = num + '';
     }
     w.postMessage(msg);
 }
