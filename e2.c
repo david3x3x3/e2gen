@@ -405,6 +405,26 @@ restart() {
   return 1;
 }
 
+static double
+compute_search_percent(void) {
+  double fraction = 0.0;
+  double weight = 1.0;
+  for (int ord = 0; ord <= current_ord; ord++) {
+    if (!Q[ord].active || Q[ord].pieces == NULL || Q[ord].pieces->piece == NULL)
+      break;
+    piecelist_t *sentinel = fit_table[compute_key(ord)];
+    int pos = 0, total = 0;
+    for (piecelist_t *pl = sentinel->next; pl != NULL; pl = pl->next) {
+      total++;
+      if (pl == Q[ord].pieces) pos = total;
+    }
+    if (total == 0 || pos == 0) break;
+    fraction += (double)(pos - 1) / total * weight;
+    weight /= total;
+  }
+  return fraction * 100.0;
+}
+
 int
 print_status(int after_best, int last) {
   char msg[1024];
@@ -416,9 +436,10 @@ print_status(int after_best, int last) {
   rate = nodes/(time(NULL)-start_time);
   bignum_fmt(rate_disp, rate);
   bignum_fmt(bestn_disp, best_node);
-  sprintf(msg, "best=%d (%s) nodes=%lld time=%lld rate=%lld restarts=%d last=%d", best,
+  double pct = last ? 100.0 : compute_search_percent();
+  sprintf(msg, "best=%d (%s) nodes=%lld time=%lld rate=%lld restarts=%d pct=%.4f last=%d", best,
 	  bestn_disp, nodes, (long long)time(NULL)-start_time, rate,
-	  restarts, last);
+	  restarts, pct, last);
   if (last || after_best || nodes >= 1000000) {
 #ifdef EMSCRIPTEN
     sprintf(msg2, "postMessage({msgType:'status',data:'%s','core':%d});", msg, core);
