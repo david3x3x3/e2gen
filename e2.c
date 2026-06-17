@@ -723,9 +723,9 @@ origmain(char *argv1, char *argv2) {
   for (i=0; i<4; i++) {
     fit_size2 *= fit_size1;
   }
-  fit_table = calloc(fit_size2, sizeof(piecelist_t *));
+  if (fit_table == NULL) fit_table = calloc(fit_size2, sizeof(piecelist_t *));
   int dirs[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
-  Q = calloc(width*height, sizeof(square_t));
+  if (Q == NULL) Q = calloc(width*height, sizeof(square_t));
   restart();
   load_state(save_filename);
 #ifdef __EMSCRIPTEN__
@@ -750,6 +750,7 @@ main() {
     " }"
     " console.log('origmain rownum=' + rownum);"
     " Module.ccall('origmain','number',['string','string'],['0',rownum+'']);"
+    " try { Module.FS.unlink('e2state--0.sav'); } catch(e) {}"
     "}");
   emscripten_run_script("postMessage('worker is ready');");
   printf("and we're off...\n");
