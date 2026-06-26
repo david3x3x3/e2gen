@@ -14,8 +14,8 @@ while [ $s -lt 21 ]; do
     s=$((s+1))
 done
 # for what in 10x10.spiral.0 10x10.row.0 18x18.spiral.0 18x18.row.0 20x20.spiral.0 20x20.row.0; do
-# for what in 10x10.row.0.10 eternity2.row.1.7; do
-for what in 9x9.row.0.7 10x10.row.0.10; do
+# for what in 9x9.row.0.7 10x10.row.0.10; do
+for what in eternity2.row.1.7; do
     echo $what
     puzzle=$(echo $what | cut -d. -f1)
     method=$(echo $what | cut -d. -f2)
@@ -34,13 +34,13 @@ for what in 9x9.row.0.7 10x10.row.0.10; do
 	name="${name}-hints"
     fi
 
-    emcc -s EXPORTED_FUNCTIONS=_main,_origmain \
-         -s EXPORTED_RUNTIME_METHODS=ccall,FS \
-         -s FORCE_FILESYSTEM=1 \
-         -O2 -o html/${name}-wasm.js e2.c
-    sed -i "s|\"${name}-wasm.wasm\"|\"${name}-wasm.wasm?v=${BUILD_TS}\"|" html/${name}-wasm.js
+    # emcc -s EXPORTED_FUNCTIONS=_main,_origmain \
+    #      -s EXPORTED_RUNTIME_METHODS=ccall,FS \
+    #      -s FORCE_FILESYSTEM=1 \
+    #      -O2 -o html/${name}-wasm.js e2.c
+    # sed -i "s|\"${name}-wasm.wasm\"|\"${name}-wasm.wasm?v=${BUILD_TS}\"|" html/${name}-wasm.js
     # x86_64-w64-mingw32-gcc -O6 -o $name e2.c
-    # gcc -O3 -o $name e2.c
+    gcc -O3 -o $name e2.c
     # clang -O3 -o $name e2.c
 done
 

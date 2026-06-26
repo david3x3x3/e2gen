@@ -183,7 +183,7 @@ with open('genheader.h', 'w') as fp:
     fp.write(f'#define WIDTH {width}\n')
     fp.write(f'#define HEIGHT {height}\n')
     fp.write(f'#define NUM_HINTS {num_hints}\n')
-    fp.write(f'#define ROWNUM_ORD {rowsize-1}\n')
+    fp.write(f'#define ROWNUM_ORD {rowsize-1+num_hints}\n')
 
 with open('gensrc.c', 'w') as fp:
     # Emit restore-dispatch preamble using GCC computed goto.
@@ -255,7 +255,7 @@ with open('gensrc.c', 'w') as fp:
         # src2 += f'      placed[p->piecenum]++;\n'
         src2 += f'      goto case{ord1}_dup;\n'
         src2 += f'    }}\n'
-        if ord1+1 == rowsize:
+        if ord1+1 == rowsize + num_hints:
             src2 += f'    if (rownum-- != 0) goto case{ord1}_dup;\n'
         src2 += f'    nodes += 1;\n'
         src2 += f'    if (nodes % status_interval == 0) {{\n'
