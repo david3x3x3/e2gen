@@ -3,6 +3,7 @@ import argparse, random, sys
 parser = argparse.ArgumentParser()
 parser.add_argument('--puzzle', required=True)
 parser.add_argument('--rowsize', type=int, required=True)
+parser.add_argument('--verbose', action='store_true')
 args = parser.parse_args()
 
 puzname = args.puzzle
@@ -56,8 +57,7 @@ while Q:
         # self.postMessage(to_js({'pieces': p2, 'url': url}, dict_converter=Object.fromEntries))
         # print({'pieces': p2, 'url': url})
     if len(solution) == width+args.rowsize:
-        #if True:
-        if solcount % 100000 == 0:
+        if args.verbose or solcount % 100000 == 0:
             disp = ' '.join([f'{p[0]}/{p[1]}' for p in solution[width:]])
             print(f'found #{solcount} - {disp}')
         solcount += 1
