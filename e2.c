@@ -751,6 +751,16 @@ origmain(char *argv1, char *argv2) {
   load_state(save_filename);
 #ifdef __EMSCRIPTEN__
   if (rownum < 0 && argv2) rownum = atoi(argv2);
+#else
+  if (argv2) {
+    int cmd_rownum = atoi(argv2);
+    if (cmd_rownum != rownum) {
+      // Different rownum on command line — discard saved state and start fresh
+      rownum = cmd_rownum;
+      restore_ord = -1;
+      nodes = 0; best = 0; best_node = 0;
+    }
+  }
 #endif
   initial_rownum = rownum;
   last_save_time = time(NULL);
