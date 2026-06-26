@@ -25,7 +25,7 @@ for what in eternity2.row.1.7; do
     if [ -f "$cache" ]; then
         numrows=$(cat "$cache")
     else
-        numrows=$(python3 et2.py $puzzle $rowsize | grep 'solutions$' | cut -d' ' -f1)
+        numrows=$(python3 et2.py --puzzle $puzzle --rowsize $rowsize | grep 'solutions$' | cut -d' ' -f1)
         echo "$numrows" > "$cache"
     fi
     python3 spiral-gen.py --puzzle $puzzle --method $method --hints $hints --rowsize $rowsize

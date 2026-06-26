@@ -1,7 +1,11 @@
-import random
-import sys
+import argparse, random, sys
 
-puzname = sys.argv[1]
+parser = argparse.ArgumentParser()
+parser.add_argument('--puzzle', required=True)
+parser.add_argument('--rowsize', type=int, required=True)
+args = parser.parse_args()
+
+puzname = args.puzzle
 if puzname == 'eternity2':
     width, height = 16, 16
 else:
@@ -51,7 +55,7 @@ while Q:
         p2 = [f'{p[0]}/{p[1]}' for p in solution[width:]]
         # self.postMessage(to_js({'pieces': p2, 'url': url}, dict_converter=Object.fromEntries))
         # print({'pieces': p2, 'url': url})
-    if len(solution) == width+int(sys.argv[2]):
+    if len(solution) == width+args.rowsize:
         #if True:
         if solcount % 100000 == 0:
             disp = ' '.join([f'{p[0]}/{p[1]}' for p in solution[width:]])
