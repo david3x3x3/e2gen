@@ -6,6 +6,7 @@ parser.add_argument('--puzzle', required=True)
 parser.add_argument('--method', required=True, choices=['row', 'strip', 'spiral'])
 parser.add_argument('--hints', type=int, required=True)
 parser.add_argument('--rowsize', type=int, required=True)
+parser.add_argument('--depth', type=int, default=None)
 args = parser.parse_args()
 
 with open('puzzles.txt', 'r') as fp:
@@ -176,6 +177,7 @@ elif args.method == 'spiral':
     build_spiral()
 
 rowsize = args.rowsize
+depth = args.depth if args.depth is not None else width * height
 
 with open('genheader.h', 'w') as fp:
     pdata = "".join(piece_data.split("\n"))
@@ -195,7 +197,7 @@ with open('gensrc.c', 'w') as fp:
     # and placed[], then we jump directly to the right case label.
     fp.write('  {\n')
     fp.write('    void *_case_labels[] = {\n      ')
-    fp.write(', '.join(f'&&case{i}' for i in range(width*height)))
+    fp.write(', '.join(f'&&case{i}' for i in range(depth)))
     fp.write('\n    };\n')
     fp.write('    if (restore_ord >= 0) {\n')
     fp.write('      int _ro = restore_ord;\n')
@@ -206,7 +208,7 @@ with open('gensrc.c', 'w') as fp:
     fp.write('  }\n')
 
     src2 = ''
-    for ord1 in range(width*height):
+    for ord1 in range(depth):
         pos1 = ord2pos[ord1]
         r1 = pos1 // width
         c1 = pos1 % width
@@ -266,13 +268,13 @@ with open('gensrc.c', 'w') as fp:
         src2 += f'      if (print_status(0,0))\n'
         src2 += f'        goto case0;\n'
         src2 += f'    }}\n'
-        if ord1+1 < width*height:
+        if ord1+1 < depth:
             src2 += f'    placed[p->piecenum] = 1;\n'
             src2 += f'    if ({ord1+1} > best) {{\n'
             src2 += f'      best = {ord1+1};\n'
             src2 += f'      best_node = nodes;\n'
             # if ord1+1 >= 94:
-            if sys.argv[1] != 'eternity2' or ord1+1 >= 127:
+            if args.puzzle != 'eternity2' or ord1+1 >= 127:
                 src2 += f'      print_puzz({ord1+1});\n'
             src2 += f'    }}\n'
         else:
@@ -280,7 +282,7 @@ with open('gensrc.c', 'w') as fp:
             src2 += f'      best = {ord1+1};\n'
             src2 += f'      best_node = nodes;\n'
             src2 += f'    }}\n'
-            if sys.argv[1] != 'eternity2' or ord1+1 >= 127:
+            if args.puzzle != 'eternity2' or ord1+1 >= 127:
                 src2 += f'    print_puzz({ord1+1});\n'
             src2 += f'    goto case{ord1}_dup;\n'
 
