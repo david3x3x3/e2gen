@@ -28,7 +28,7 @@ for what in eternity2.row.1.7; do
         numrows=$(python3 et2.py $puzzle $rowsize | grep 'solutions$' | cut -d' ' -f1)
         echo "$numrows" > "$cache"
     fi
-    python3 spiral-gen.py $puzzle $method $hints $rowsize
+    python3 spiral-gen.py --puzzle $puzzle --method $method --hints $hints --rowsize $rowsize
     name="${puzzle}-${method}-${rowsize}-${numrows}"
     if [ $hints -gt 1 ]; then
 	name="${name}-hints"

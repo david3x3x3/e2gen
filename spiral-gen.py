@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-import random, time, sys, re
+import argparse, random, time, sys, re
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--puzzle', required=True)
+parser.add_argument('--method', required=True, choices=['row', 'strip', 'spiral'])
+parser.add_argument('--hints', type=int, required=True)
+parser.add_argument('--rowsize', type=int, required=True)
+args = parser.parse_args()
 
 with open('puzzles.txt', 'r') as fp:
     lines = fp.readlines()
     for i in range(len(lines)//2):
-        if lines[i*2].strip() == sys.argv[1]:
+        if lines[i*2].strip() == args.puzzle:
             piece_data = lines[i*2+1].strip()
             break
         #print(f'puzzle {lines[i*2].strip()}: {lines[i*2+1].strip()}')
@@ -19,7 +26,7 @@ print(piece_data)
 # square sizes
 # 16 14  12  10   8   6   4   2
 
-z = re.search('^([0-9]+)x([0-9]+)', sys.argv[1])
+z = re.search('^([0-9]+)x([0-9]+)', args.puzzle)
 if z == None:
     width, height = (16, 16)
 else:
@@ -67,7 +74,7 @@ for key1, val in pieces.items():
 
 hints = ((135, (139,2)), (34, (208,3)), (45, (255,3)), 
          (210, (181, 3)), (221, (249, 0)))
-num_hints = int(sys.argv[3])
+num_hints = args.hints
 hints_dict = { k: v for k, v in hints[:num_hints] }
 # hints = { 135: (139,2) }
 #hints = {}
@@ -161,17 +168,14 @@ def build_spiral():
     for ord1, pos1 in enumerate(ord2pos):
         pos2ord[pos1] = ord1
 
-if sys.argv[2] == 'row':
+if args.method == 'row':
     build_rowscan()
-elif sys.argv[2] == 'strip':
+elif args.method == 'strip':
     build_strip()
-elif sys.argv[2] == 'spiral':
+elif args.method == 'spiral':
     build_spiral()
-else:
-    print('unknown piece order scheme: {sys.argv[2]}')
-    sys.exit(0)
 
-rowsize = int(sys.argv[4])
+rowsize = args.rowsize
 
 with open('genheader.h', 'w') as fp:
     pdata = "".join(piece_data.split("\n"))
