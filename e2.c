@@ -466,7 +466,7 @@ print_status(int after_best, int last) {
       exit(0);
     }
   }
-  if (!after_best) {
+  if (!after_best && initial_rownum < 0) {
     if (width == 16 && height == 16 && (
 	best<127 ||
 	//	(nodes >= 100000000 && best<192) ||
